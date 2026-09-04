@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Purchase Order {{ po.order_number }} - Billvice{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        .sidebar,
+        .no-print {
+            display: none !important;
+        }
+        .main-content {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .card {
+            box-shadow: none !important;
+            border: 1px solid #000 !important;
+        }
+        .card-header,
+        .card-footer {
+            border-color: #000 !important;
+        }
+        .table th,
+        .table td {
+            border: 1px solid #000 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <div>
+            <h2 class="mb-1">Purchase Order {{ po.order_number }}</h2>
+            <p class="text-secondary mb-0">{{ po.supplier_name }}</p>
+        </div>
+        <div class="d-flex gap-2 no-print">
+            <button class="btn btn-outline-primary" onclick="location.href='{% url 'billing:purchase_orders' %}'">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </button>
+            <a href="{% url 'billing:purchase_order_print' po.id %}" target="_blank" class="btn btn-outline-primary">
+                <i class="fas fa-print me-2"></i>Print
+            </a>
+            {% if po.status != 'received' and po.status != 'cancelled' %}
+            <form method="post" action="{% url 'billing:receive_purchase_order' po.id %}">
+                {% csrf_token %}
+                <button class="btn btn-success">
+                    <i class="fas fa-check me-2"></i>Receive & Update Stock
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Supplier</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2"><strong>Name:</strong> {{ po.supplier_name }}</div>
+                    {% if po.supplier_phone %}<div class="mb-2"><strong>Phone:</strong> {{ po.supplier_phone }}</div>{% endif %}
+                    {% if po.supplier_gstin %}<div class="mb-2"><strong>GSTIN:</strong> {{ po.supplier_gstin }}</div>{% endif %}
+                    {% if po.supplier_address %}<div class="mb-2"><strong>Address:</strong><br>{{ po.supplier_address|linebreaksbr }}</div>{% endif %}
+                    {% if po.notes %}<div class="mb-2"><strong>Notes:</strong><br>{{ po.notes|linebreaksbr }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Order Details</h5>
+                    <span class="badge {% if po.status == 'received' %}bg-success{% elif po.status == 'cancelled' %}bg-danger{% elif po.status == 'ordered' %}bg-primary{% else %}bg-secondary{% endif %}">
+                        {{ po.get_status_display }}
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Unit Cost</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in po.items.all %}
+                                <tr>
+                                    <td>{{ item.product.name }}</td>
+                                    <td class="text-end">{{ item.quantity|floatformat:3 }} {{ item.get_uom_display }}</td>
+                                    <td class="text-end">Rs{{ item.unit_cost|floatformat:2 }}</td>
+                                    <td class="text-end">Rs{{ item.total|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Subtotal</strong></td>
+                                    <td class="text-end"><strong>Rs{{ po.subtotal|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Total</strong></td>
+                                    <td class="text-end"><strong>Rs{{ po.total_amount|floatformat:2 }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-white d-flex justify-content-between">
+                    <div>
+                        <small class="text-secondary">Order date: {{ po.order_date|date:"d M Y" }}</small>
+                        {% if po.received_date %}
+                        <br><small class="text-secondary">Received date: {{ po.received_date|date:"d M Y" }}</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <small class="text-secondary">Updated: {{ po.updated_at|date:"d M Y, H:i" }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

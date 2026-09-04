@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Status – Legacy</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .header-title {
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .header-subtitle {
+            font-size: 12px;
+            color: #cbd5e1;
+        }
+        .columns {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+        }
+        .panel {
+            flex: 1;
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            text-align: center;
+            font-weight: bold;
+            padding: 4px 0;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+        .panel-header.pending {
+            color: #c2410c;
+            border-bottom: 2px solid #fd7e14;
+        }
+        .panel-header.ready {
+            color: #ffffff;
+            background: #166534;
+        }
+        .panel-body {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+            overflow: hidden;
+        }
+        .token-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            margin: 4px;
+            background: #fd7e14;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            color: #ffffff;
+        }
+        .token-circle.ready {
+            background: #16a34a;
+        }
+        .empty {
+            width: 100%;
+            text-align: center;
+            margin-top: 16px;
+            color: #64748b;
+            font-size: 13px;
+        }
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">Order Status</div>
+        <div class="header-subtitle">{{ today|date:"d M Y" }} · Look for your token number</div>
+    </div>
+
+    <div class="columns">
+        <section class="panel">
+            <div class="panel-header pending">Preparing</div>
+            <div class="panel-body">
+                {% if pending_tokens %}
+                    {% for t in pending_tokens %}
+                    <div class="token-circle">{{ t }}</div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty">No orders preparing</div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header ready">Order Ready</div>
+            <div class="panel-body">
+                {% if ready_tokens %}
+                    {% for t in ready_tokens %}
+                    <div class="token-circle ready">{{ t }}</div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty">No orders ready yet</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <div class="footer">
+        Updates every 5 seconds · Legacy view (no sound)
+    </div>
+
+    <script>
+        // Simple auto-refresh every 5 seconds
+        setInterval(function () {
+            window.location.reload();
+        }, 5000);
+    </script>
+</body>
+</html>
+

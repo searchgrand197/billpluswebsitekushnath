@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Sales Invoice</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 12px;
+            background: #f5f5f5;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .invoice-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 14px 18px;
+        }
+
+        .header {
+            display: table;
+            width: 100%;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .header-left,
+        .header-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .slip-logo {
+            max-height: 56px;
+            max-width: 120px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .company-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .company-line {
+            font-size: 11px;
+            color: #4b5563;
+        }
+
+        .invoice-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1f2933;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2px;
+        }
+
+        .meta-table td {
+            padding: 2px 0 0 12px;
+            font-size: 11px;
+        }
+
+        .meta-label {
+            color: #6b7280;
+        }
+
+        .meta-value {
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .section-title {
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            color: #374151;
+        }
+
+        .party-row {
+            display: table;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .party-col {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding-right: 8px;
+        }
+
+        .party-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 3px;
+            padding: 6px 8px;
+        }
+
+        .party-box p {
+            margin: 1px 0;
+            font-size: 11px;
+        }
+
+        .label {
+            font-weight: 500;
+            color: #4b5563;
+        }
+
+        .value {
+            color: #111827;
+        }
+
+        .items-section {
+            margin-top: 6px;
+        }
+
+        table.items-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #e5e7eb;
+        }
+
+        .items-table thead tr {
+            background: #f3f4f6;
+        }
+
+        .items-table th,
+        .items-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 5px 6px;
+            font-size: 11px;
+        }
+
+        .items-table th {
+            text-align: center;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .items-table td {
+            text-align: right;
+            color: #111827;
+        }
+
+        .items-table td.col-sno,
+        .items-table td.col-desc {
+            text-align: left;
+        }
+
+        .items-table th.col-desc {
+            text-align: left;
+        }
+
+        .items-table tbody tr:nth-child(even) {
+            background: #fafafb;
+        }
+
+        .footer-grid {
+            margin-top: 10px;
+            display: table;
+            width: 100%;
+        }
+
+        .footer-col {
+            display: table-cell;
+            vertical-align: top;
+            padding-right: 8px;
+        }
+
+        .footer-col-wide {
+            width: 50%;
+        }
+
+        .footer-col-narrow {
+            width: 25%;
+        }
+
+        .amount-words-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 3px;
+            padding: 6px 8px;
+            font-style: italic;
+            font-size: 11px;
+            color: #111827;
+        }
+
+        .bank-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 3px;
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .totals-table td {
+            padding: 3px 4px;
+            font-size: 11px;
+        }
+
+        .totals-label {
+            text-align: left;
+            color: #4b5563;
+        }
+
+        .totals-value {
+            text-align: right;
+            color: #111827;
+        }
+
+        .totals-strong {
+            font-weight: 700;
+            border-top: 1px solid #d1d5db;
+            padding-top: 4px;
+        }
+
+        .qr {
+            text-align: right;
+            margin-top: 8px;
+        }
+
+        .qr img {
+            max-height: 80px;
+        }
+
+        .signatures {
+            margin-top: 18px;
+            display: table;
+            width: 100%;
+        }
+
+        .signature-cell {
+            display: table-cell;
+            width: 50%;
+            text-align: center;
+            vertical-align: bottom;
+            padding-top: 20px;
+        }
+
+        .signature-line {
+            border-top: 1px solid #4b5563;
+            margin: 0 auto 3px;
+            width: 70%;
+        }
+
+        .signature-label {
+            font-size: 11px;
+            color: #4b5563;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 6px;
+            }
+            .invoice-wrapper {
+                border: none;
+                border-radius: 0;
+                padding: 8px 10px;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+        }
+    {% load static %}
+    </style>
+</head>
+<body>
+    <div class="invoice-wrapper">
+        <div class="header">
+            <div class="header-left">
+                <img src="{% static 'img/logo.png' %}" class="slip-logo" alt="{{ company_name }}" />
+                <div class="company-name">{{ company_name }}</div>
+                <div class="company-line">{{ company_address }}</div>
+                <div class="company-line">
+                    Phone: {{ company_contact }}{% if company_email %} | Email: {{ company_email }}{% endif %}
+                </div>
+                {% if company_gstin %}
+                <div class="company-line">GSTIN: {{ company_gstin }}</div>
+                {% endif %}
+            </div>
+            <div class="header-right">
+                <div class="invoice-title">Tax Invoice</div>
+                <table class="meta-table">
+                    <tr>
+                        <td class="meta-label">Invoice No:</td>
+                        <td class="meta-value">{{ invoice_no }}</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Invoice Date:</td>
+                        <td class="meta-value">{{ invoice_date }}</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Due Date:</td>
+                        <td class="meta-value">{{ due_date }}</td>
+                    </tr>
+                    <tr>
+                        <td class="meta-label">Status:</td>
+                        <td class="meta-value">{{ status|title }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="party-row">
+            <div class="party-col">
+                <div class="section-title">Bill To</div>
+                <div class="party-box">
+                    <p><span class="label">Name: </span><span class="value">{{ bill_to.name }}</span></p>
+                    {% if bill_to.address %}
+                    <p><span class="label">Address: </span><span class="value">{{ bill_to.address|linebreaks }}</span></p>
+                    {% endif %}
+                    {% if bill_to.gstin %}
+                    <p><span class="label">GSTIN: </span><span class="value">{{ bill_to.gstin }}</span></p>
+                    {% endif %}
+                    {% if bill_to.state_code %}
+                    <p><span class="label">State: </span><span class="value">{{ bill_to.state_code }}</span></p>
+                    {% endif %}
+                    {% if bill_to.phone %}
+                    <p><span class="label">Phone: </span><span class="value">{{ bill_to.phone }}</span></p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="party-col">
+                <div class="section-title">Ship To</div>
+                <div class="party-box">
+                    <p><span class="label">Name: </span><span class="value">{{ ship_to.name|default:bill_to.name }}</span></p>
+                    {% if ship_to.address or bill_to.address %}
+                    <p><span class="label">Address: </span><span class="value">{{ ship_to.address|default:bill_to.address|linebreaks }}</span></p>
+                    {% endif %}
+                    {% if ship_to.gstin or bill_to.gstin %}
+                    <p><span class="label">GSTIN: </span><span class="value">{{ ship_to.gstin|default:bill_to.gstin }}</span></p>
+                    {% endif %}
+                    {% if ship_to.state_code or bill_to.state_code %}
+                    <p><span class="label">State: </span><span class="value">{{ ship_to.state_code|default:bill_to.state_code }}</span></p>
+                    {% endif %}
+                    {% if ship_to.phone or bill_to.phone %}
+                    <p><span class="label">Phone: </span><span class="value">{{ ship_to.phone|default:bill_to.phone }}</span></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="items-section" id="itemsTableContainer">
+            <table class="items-table" id="itemsTable">
+                <thead>
+                    <tr>
+                        <th style="width:5%;">#</th>
+                        <th class="col-desc" style="width:45%;">Item Description</th>
+                        <th style="width:10%;">HSN</th>
+                        <th style="width:10%;">Qty</th>
+                        <th style="width:15%;">Rate (Rs)</th>
+                        <th style="width:15%;">Amount (Rs)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td class="col-sno">{{ forloop.counter }}</td>
+                        <td class="col-desc">{{ item.description }}</td>
+                        <td>{{ item.hsn|default:"" }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.rate }}</td>
+                        <td>{{ item.total }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer-grid">
+            <div class="footer-col footer-col-wide">
+                <div class="section-title">Amount in Words</div>
+                <div class="amount-words-box">
+                    {{ amount_in_words|default:"Not Provided" }}
+                </div>
+            </div>
+            <div class="footer-col footer-col-narrow">
+                <div class="section-title">Bank Details</div>
+                <div class="bank-box">
+                    {% if bank_name %}
+                    <p><span class="label">Bank: </span><span class="value">{{ bank_name }}</span></p>
+                    {% endif %}
+                    {% if bank_account %}
+                    <p><span class="label">A/C No: </span><span class="value">{{ bank_account }}</span></p>
+                    {% endif %}
+                    {% if bank_ifsc %}
+                    <p><span class="label">IFSC: </span><span class="value">{{ bank_ifsc }}</span></p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="footer-col footer-col-narrow">
+                <div class="section-title">Totals</div>
+                <table class="totals-table">
+                    <tr>
+                        <td class="totals-label">Sub Total</td>
+                        <td class="totals-value">Rs{{ subtotal|floatformat:2 }}</td>
+                    </tr>
+                    {% if discount and discount|floatformat:2 != '0.00' %}
+                    <tr>
+                        <td class="totals-label">Discount</td>
+                        <td class="totals-value">Rs{{ discount|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if cgst_amt and cgst_amt|floatformat:2 != '0.00' %}
+                    <tr>
+                        <td class="totals-label">CGST</td>
+                        <td class="totals-value">Rs{{ cgst_amt|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if sgst_amt and sgst_amt|floatformat:2 != '0.00' %}
+                    <tr>
+                        <td class="totals-label">SGST</td>
+                        <td class="totals-value">Rs{{ sgst_amt|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if igst_amt and igst_amt|floatformat:2 != '0.00' %}
+                    <tr>
+                        <td class="totals-label">IGST</td>
+                        <td class="totals-value">Rs{{ igst_amt|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if advance_paid and advance_paid|floatformat:2 != '0.00' %}
+                    <tr>
+                        <td class="totals-label">Advance Paid</td>
+                        <td class="totals-value">Rs{{ advance_paid|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="totals-label totals-strong">Grand Total</td>
+                        <td class="totals-value totals-strong">Rs{{ total|floatformat:2 }}</td>
+                    </tr>
+                    {% if balance and balance|floatformat:2 != '0.00' %}
+                    <tr>
+                        <td class="totals-label">Balance Due</td>
+                        <td class="totals-value">Rs{{ balance|floatformat:2 }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        {% if qr_code_url %}
+        <div class="qr">
+            <img src="{{ qr_code_url }}" alt="QR Code">
+        </div>
+        {% endif %}
+
+        <div class="signatures">
+            <div class="signature-cell">
+                <div class="signature-line"></div>
+                <div class="signature-label">Customer Signature</div>
+            </div>
+            <div class="signature-cell">
+                <div class="signature-line"></div>
+                <div class="signature-label">For {{ company_name }}</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var tbody = document.querySelector('#itemsTable tbody');
+            if (!tbody) return;
+            var rows = tbody.querySelectorAll('tr').length;
+            var container = document.getElementById('itemsTableContainer');
+            if (rows > 12 && container) {
+                container.className += ' page-break';
+            }
+        })();
+    </script>
+</body>
+</html>

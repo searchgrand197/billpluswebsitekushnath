@@ -1,0 +1,171 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Stock & Inventory - BMS Pro{% endblock %}
+{% block page_title %}Stock & Inventory Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Controls -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">Inventory Stock Monitoring</h4>
+                <p class="text-secondary mb-0">Track real-time stock levels, reorder thresholds, and inventory valuation.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'billing:products' %}" class="btn-bms-secondary">
+                    <i class="fas fa-cubes"></i>
+                    <span>Product Catalog</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat KPI Cards Grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Stock Items</span>
+                    <div class="stat-value">{{ total_items }}</div>
+                    <small class="text-muted"><i class="fas fa-boxes text-success me-1"></i> Tracked Products</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-warehouse"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Low Stock Warning</span>
+                    <div class="stat-value text-warning">{{ low_stock_count }}</div>
+                    <small class="text-muted"><i class="fas fa-exclamation-triangle text-warning me-1"></i> At/Below Limit</small>
+                </div>
+                <div class="stat-icon" style="background: #FEF3C7; color: #D97706;">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Out of Stock</span>
+                    <div class="stat-value text-danger">{{ out_of_stock_count }}</div>
+                    <small class="text-muted"><i class="fas fa-times-circle text-danger me-1"></i> Empty Inventory</small>
+                </div>
+                <div class="stat-icon" style="background: #FEE2E2; color: #DC2626;">
+                    <i class="fas fa-ban"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Stock Valuation</span>
+                    <div class="stat-value text-success">₹{{ total_value|floatformat:2 }}</div>
+                    <small class="text-muted"><i class="fas fa-rupee-sign text-success me-1"></i> Asset Value</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-vault"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Table -->
+    <div class="bms-table-container">
+        <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center">
+            <div class="header-search" style="width: 320px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="stockSearchInput" placeholder="Filter stock product name..." autocomplete="off">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table bms-table align-middle" id="stockTable">
+                <thead>
+                    <tr>
+                        <th>Product Item</th>
+                        <th>Category</th>
+                        <th class="text-center">Current Quantity</th>
+                        <th class="text-center">Reorder Threshold</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in stocks %}
+                    <tr>
+                        <td class="fw-bold text-dark">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-light p-2 text-success">
+                                    <i class="fas fa-box"></i>
+                                </div>
+                                <div>
+                                    <div>{{ item.product.name }}</div>
+                                    <small class="text-muted">SKU: {{ item.product.sku|default:"N/A" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ item.product.category.name|default:"General" }}</td>
+                        <td class="text-center fw-bold fs-6">
+                            {{ item.quantity|floatformat:2 }} {{ item.product.get_uom_display }}
+                        </td>
+                        <td class="text-center text-muted">
+                            {{ item.low_stock_threshold|floatformat:2 }} {{ item.product.get_uom_display }}
+                        </td>
+                        <td class="text-center">
+                            {% if item.quantity == 0 %}
+                            <span class="bms-badge badge-overdue"><i class="fas fa-circle text-xs"></i> Out of Stock</span>
+                            {% elif item.quantity <= item.low_stock_threshold %}
+                            <span class="bms-badge badge-pending"><i class="fas fa-circle text-xs"></i> Low Stock</span>
+                            {% else %}
+                            <span class="bms-badge badge-paid"><i class="fas fa-circle text-xs"></i> Healthy Stock</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'billing:update_stock' item.product.id %}" class="btn-bms-light py-1 px-3 text-xs" title="Update Stock">
+                                <i class="fas fa-edit me-1"></i> Restock Qty
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fas fa-warehouse fa-3x mb-3 d-block text-muted"></i>
+                            <h5 class="fw-bold text-dark">No Inventory Records Found</h5>
+                            <p class="text-secondary">Add products to automatically track stock levels.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('stockSearchInput');
+        const table = document.getElementById('stockTable');
+        
+        if (searchInput && table) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                const rows = table.querySelectorAll('tbody tr');
+
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(query) ? '' : 'none';
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

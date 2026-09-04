@@ -1,0 +1,940 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Kushnath Ayurveda - 100% natural Ayurvedic products for wellness, beauty, immunity and daily health.">
+  <title>{% block title %}Kushnath Ayurveda{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="icon" href="{{ logo_url }}">
+  <script>
+    tailwind.config = {
+      theme: {
+        screens: { xs: '480px', sm: '640px', md: '768px', lg: '1024px', xl: '1280px', '2xl': '1536px' },
+        extend: {
+          colors: {
+            brand: { 50:'#edf7f0', 100:'#d4eeda', 200:'#a8ddb5', 500:'#3d9b5f', 600:'#2d7a4a', 700:'#1f5c37', 800:'#164428', 900:'#0f2f1b' },
+            gold: { 400:'#d4af37', 500:'#c9a227', 600:'#a8841d' },
+            earth: { 50:'#faf7f2', 100:'#f3ebe0', 200:'#e5d5c3', 800:'#3d2f1f', 900:'#2a2015' }
+          },
+          boxShadow: {
+            soft: '0 10px 40px rgba(31, 92, 55, 0.08)',
+            card: '0 4px 24px rgba(0,0,0,0.06)',
+            glow: '0 0 30px rgba(201, 162, 39, 0.35)',
+          },
+          animation: {
+            'fade-up': 'fadeUp 0.7s ease forwards',
+            'fade-in': 'fadeIn 0.6s ease forwards',
+            'slide-down': 'slideDown 0.3s ease forwards',
+            'ken-burns': 'kenBurns 18s ease-in-out infinite alternate',
+            'float': 'float 4s ease-in-out infinite',
+            'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+    body { font-family: 'DM Sans', sans-serif; }
+    .font-display { font-family: 'Cormorant Garamond', serif; }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(40px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes kenBurns { from { transform:scale(1); } to { transform:scale(1.08); } }
+    @keyframes float { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
+    @keyframes pulseSoft { 0%,100%{ box-shadow:0 0 0 0 rgba(201,162,39,0.4); } 50%{ box-shadow:0 0 0 8px rgba(201,162,39,0); } }
+    @keyframes bounce { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.25); } }
+    @keyframes toastIn { from { transform:translateY(20px); opacity:0; } }
+    @keyframes toastOut { to { transform:translateY(20px); opacity:0; } }
+    @keyframes shimmer { 0%{ background-position:-200% 0; } 100%{ background-position:200% 0; } }
+    @keyframes slideInRight { from { opacity:0; transform:translateX(40px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes popIn { 0%{ opacity:0; transform:scale(0.8); } 70%{ transform:scale(1.05); } 100%{ opacity:1; transform:scale(1); } }
+    @keyframes drift { 0%,100%{ transform:translate(0,0) rotate(0deg); opacity:0.3; } 50%{ transform:translate(20px,-30px) rotate(15deg); opacity:0.6; } }
+    @keyframes headerDrop { from { opacity:0; } to { opacity:1; } }
+    @keyframes imgReveal { from { transform:scale(1.15); opacity:0; } to { transform:scale(1); opacity:1; } }
+    @keyframes borderGlow { 0%,100%{ border-color:rgba(201,162,39,0.2); } 50%{ border-color:rgba(201,162,39,0.6); } }
+
+    .page-enter { animation: fadeIn 0.6s ease; }
+    header.site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border-bottom: 1px solid rgba(243, 235, 224, 0.85);
+      box-shadow: 0 8px 28px rgba(15, 47, 27, 0.06);
+      animation: headerDrop 0.55s ease forwards;
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+    #site-header-spacer {
+      width: 100%;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+    header.site-header .site-topbar {
+      background: rgba(15, 47, 27, 0.88);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+      padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+      line-height: 1.35;
+    }
+    header.site-header .site-topbar .topbar-full { display: none; }
+    header.site-header .site-topbar .topbar-short { display: inline; }
+    @media (min-width: 640px) {
+      header.site-header .site-topbar .topbar-full { display: inline; }
+      header.site-header .site-topbar .topbar-short { display: none; }
+    }
+    header.site-header .site-nav {
+      padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+      padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+    }
+    header.site-header #mobile-menu {
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      border-top: 1px solid rgba(243, 235, 224, 0.9);
+      max-height: min(70vh, calc(100dvh - 5.5rem - env(safe-area-inset-top, 0px)));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+      -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 379px) {
+      header.site-header .brand-title { font-size: 1rem; }
+      header.site-header .brand-sub { letter-spacing: 0.18em; }
+    }
+    body.nav-open { overflow: hidden; touch-action: none; }
+    .hero-slide { transition: opacity 0.8s ease; }
+    .hero-bg { animation: kenBurns 18s ease-in-out infinite alternate; }
+    .hero-text > * { opacity:0; animation: fadeUp 0.8s ease forwards; }
+    .hero-text > *:nth-child(1) { animation-delay: 0.1s; }
+    .hero-text > *:nth-child(2) { animation-delay: 0.25s; }
+    .hero-text > *:nth-child(3) { animation-delay: 0.4s; }
+    .hero-text > *:nth-child(4) { animation-delay: 0.55s; }
+    .hero-text > *:nth-child(5) { animation-delay: 0.7s; }
+
+    /* Premium hero cinema — mobile uses landscape-friendly frame; desktop stays cinematic */
+    .hero-cinema {
+      isolation: isolate;
+      background: #0f2f1b;
+    }
+    .hero-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 0;
+      max-height: min(62vh, 420px);
+    }
+    @media (min-width: 640px) {
+      .hero-stage {
+        aspect-ratio: auto;
+        min-height: 70vh;
+        max-height: none;
+      }
+    }
+    @media (min-width: 1024px) {
+      .hero-stage {
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+    }
+    /* When a portrait mobile asset exists, use a taller phone-friendly frame */
+    .hero-stage.has-mobile-media {
+      aspect-ratio: 3 / 4;
+      max-height: min(78vh, 640px);
+    }
+    @media (min-width: 640px) {
+      .hero-stage.has-mobile-media {
+        aspect-ratio: auto;
+        max-height: none;
+      }
+    }
+    .hero-slide {
+      position: absolute; inset: 0; z-index: 0;
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity 1.1s cubic-bezier(0.4, 0, 0.2, 1), visibility 1.1s;
+      background: #0f2f1b;
+    }
+    .hero-slide.is-active { opacity: 1; visibility: visible; z-index: 1; pointer-events: auto; }
+    .hero-slide .hero-bg {
+      position: absolute; inset: 0; background-size: cover; background-position: center center;
+      transform: none; will-change: auto;
+      animation: none;
+    }
+    @media (min-width: 640px) {
+      .hero-slide .hero-bg {
+        inset: -4%;
+        transform: scale(1.05); will-change: transform;
+        animation: heroKenBurns 22s ease-in-out infinite alternate;
+      }
+    }
+    .hero-slide .hero-bg-video {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: center center; z-index: 0;
+      transform: none;
+    }
+    @media (min-width: 640px) {
+      .hero-slide .hero-bg-video { transform: scale(1.02); }
+    }
+    .hero-media-mobile { display: block !important; }
+    .hero-media-desktop { display: none !important; }
+    @media (min-width: 640px) {
+      .hero-media-mobile { display: none !important; }
+      .hero-media-desktop { display: block !important; }
+    }
+    .hero-bg-fallback {
+      background: linear-gradient(135deg, #0f2f1b 0%, #1f5c37 55%, #0a1f12 100%);
+    }
+    .hero-slide.is-active .hero-bg { animation-play-state: running; }
+    .hero-slide:not(.is-active) .hero-bg { animation-play-state: paused; }
+    @keyframes heroKenBurns {
+      0% { transform: scale(1.05) translate(0, 0); }
+      100% { transform: scale(1.12) translate(-1.2%, -0.8%); }
+    }
+    .hero-shade {
+      position: absolute; inset: 0; z-index: 1;
+      background:
+        linear-gradient(115deg, rgba(8, 28, 17, 0.94) 0%, rgba(15, 47, 27, 0.82) 32%, rgba(15, 47, 27, 0.45) 58%, rgba(15, 47, 27, 0.12) 100%),
+        linear-gradient(to top, rgba(8, 28, 17, 0.88) 0%, transparent 42%);
+    }
+    @media (max-width: 639px) {
+      .hero-shade {
+        background:
+          linear-gradient(to bottom, rgba(8, 28, 17, 0.55) 0%, rgba(8, 28, 17, 0.72) 45%, rgba(8, 28, 17, 0.92) 100%);
+      }
+    }
+    .hero-grain {
+      position: absolute; inset: 0; z-index: 2; opacity: 0.04; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .hero-content-wrap {
+      position: relative; z-index: 10;
+      min-height: 75vh; display: flex; align-items: flex-end;
+      padding-top: 5.5rem; padding-bottom: 7rem;
+    }
+    @media (min-width: 640px) { .hero-content-wrap { min-height: 85vh; align-items: center; padding-bottom: 6rem; } }
+    @media (min-width: 1024px) { .hero-content-wrap { min-height: 100vh; min-height: 100dvh; padding-bottom: 5.5rem; } }
+    .hero-glass {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 1.25rem;
+      padding: 1.25rem 1.35rem;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+    }
+    @media (min-width: 640px) {
+      .hero-glass { background: transparent; backdrop-filter: none; border: none; padding: 0; box-shadow: none; border-radius: 0; }
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.35rem 0.85rem; border-radius: 9999px;
+      background: rgba(201, 162, 39, 0.15); border: 1px solid rgba(212, 175, 55, 0.35);
+      color: #e8c96a; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+    }
+    @media (min-width: 640px) { .hero-badge { font-size: 0.72rem; letter-spacing: 0.32em; } }
+    .hero-headline {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 700; line-height: 1.06;
+      text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+    }
+    .hero-headline em { font-style: normal; color: #e8c96a; }
+    .hero-accent-line {
+      width: 3.5rem; height: 3px; border-radius: 2px;
+      background: linear-gradient(90deg, #c9a227, rgba(201, 162, 39, 0.2));
+      margin: 1rem 0 1.25rem;
+    }
+    .hero-cta-primary {
+      background: linear-gradient(135deg, #ffffff 0%, #f5f0e6 100%);
+      color: #164428; font-weight: 700;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .hero-cta-primary:hover { background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%); color: #0f2f1b; }
+    .hero-cta-secondary {
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(8px);
+    }
+    .hero-cta-secondary:hover { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.55); }
+    .hero-nav-btn {
+      width: 2.25rem; height: 2.25rem; border-radius: 9999px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white; backdrop-filter: blur(8px);
+      transition: background 0.25s, transform 0.25s;
+    }
+    @media (min-width: 640px) {
+      .hero-nav-btn { width: 2.75rem; height: 2.75rem; }
+    }
+    .hero-nav-btn:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+    .hero-dot {
+      height: 0.45rem; border-radius: 9999px; background: rgba(255, 255, 255, 0.35);
+      transition: all 0.35s ease; cursor: pointer; border: none; padding: 0;
+    }
+    .hero-dot.is-active { width: 2.25rem; background: #d4af37; }
+    .hero-dot:not(.is-active) { width: 0.45rem; }
+    .hero-progress-track {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: rgba(255, 255, 255, 0.12); z-index: 20;
+    }
+    .hero-progress-fill {
+      height: 100%; width: 0%; background: linear-gradient(90deg, #c9a227, #e8c96a);
+      transition: width 0.1s linear;
+    }
+    .hero-trust {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 15;
+      background: rgba(8, 28, 17, 0.55); backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .hero-trust-item { display: flex; align-items: center; gap: 0.4rem; color: rgba(255,255,255,0.85); font-size: 0.7rem; font-weight: 500; white-space: nowrap; }
+    @media (min-width: 640px) { .hero-trust-item { font-size: 0.78rem; } }
+    .hero-trust-item i { color: #d4af37; font-size: 0.65rem; }
+    .hero-scroll-hint {
+      position: absolute; bottom: 4.5rem; left: 50%; transform: translateX(-50%);
+      z-index: 12; color: rgba(255,255,255,0.5); font-size: 0.65rem;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      animation: heroScrollBounce 2.5s ease-in-out infinite;
+    }
+    @media (max-width: 639px) { .hero-scroll-hint { display: none; } }
+    @keyframes heroScrollBounce { 0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.5; } 50% { transform: translateX(-50%) translateY(6px); opacity: 0.9; } }
+    .hero-slide-counter { font-variant-numeric: tabular-nums; letter-spacing: 0.08em; }
+    .hero-botanical { position: absolute; pointer-events: none; opacity: 0.12; z-index: 3; }
+    .hero-slide.is-active .hero-text > * { animation: fadeUp 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+    .reveal { opacity:0; transform:translateY(36px); transition: opacity 0.7s ease, transform 0.7s ease; }
+    .reveal.visible { opacity:1; transform:translateY(0); }
+    .reveal-left { opacity:0; transform:translateX(-36px); transition: opacity 0.7s ease, transform 0.7s ease; }
+    .reveal-left.visible { opacity:1; transform:translateX(0); }
+    .reveal-scale { opacity:0; transform:scale(0.92); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal-scale.visible { opacity:1; transform:scale(1); }
+    .reveal-child { opacity:0; transform:translateY(24px); transition: opacity 0.55s ease, transform 0.55s ease; }
+    .reveal-child.visible { opacity:1; transform:translateY(0); }
+
+    .product-card { transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), box-shadow 0.4s ease, border-color 0.3s; }
+    .product-card:hover { transform: translateY(-10px) scale(1.03); box-shadow: 0 24px 48px rgba(31,92,55,0.18); border-color: rgba(201,162,39,0.4); }
+    .product-card img { transition: transform 0.6s ease; animation: imgReveal 0.8s ease forwards; }
+    .product-card:hover img { transform: scale(1.12); }
+    .product-card .add-cart-btn { transition: all 0.3s ease; position: relative; overflow: hidden; }
+    .product-card .add-cart-btn:hover { letter-spacing: 0.5px; }
+    .product-card .add-cart-btn::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent); transform:translateX(-100%); transition:transform 0.5s; }
+    .product-card:hover .add-cart-btn::after { transform:translateX(100%); }
+    .btn-lift { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+    .btn-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+    .btn-lift:active { transform: scale(0.97); }
+
+    .cart-bounce { animation: bounce 0.4s ease; }
+    .toast { animation: toastIn 0.3s ease, toastOut 0.3s ease 2.2s forwards; }
+    .logo-float { animation: float 5s ease-in-out infinite; }
+
+    .dropdown-menu { opacity:0; visibility:hidden; transform:translateY(8px); transition: all 0.25s ease; }
+    .dropdown:hover .dropdown-menu, .dropdown.open .dropdown-menu { opacity:1; visibility:visible; transform:translateY(0); }
+
+    .best-card { transition: transform 0.5s cubic-bezier(.34,1.56,.64,1), box-shadow 0.5s ease; }
+    .best-card:hover { transform: translateY(-10px) scale(1.02); box-shadow: 0 22px 44px rgba(22, 68, 40, 0.45); }
+    .concern-card { transition: transform 0.4s cubic-bezier(.34,1.56,.64,1), box-shadow 0.4s ease; }
+    .concern-card:hover { transform: translateY(-10px); box-shadow: 0 18px 36px rgba(31,92,55,0.12); }
+    .concern-scroll {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      scroll-padding-left: 0.75rem;
+    }
+    .concern-scroll::-webkit-scrollbar { display: none; }
+
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .gold-line { background: linear-gradient(90deg, transparent, #c9a227, transparent); height: 1px; }
+
+    .nav-link { position:relative; }
+    .nav-link::after { content:''; position:absolute; bottom:-4px; left:0; width:0; height:2px; background:#d4af37; transition:width 0.3s ease; }
+    .nav-link:hover::after { width:100%; }
+
+    .shimmer-btn { background: linear-gradient(90deg, #1f5c37, #2d7a4a, #1f5c37); background-size:200% 100%; animation: shimmer 3s linear infinite; }
+
+    .floating-leaf { position:absolute; pointer-events:none; opacity:0.25; animation: drift 8s ease-in-out infinite; }
+    .floating-leaf:nth-child(2) { animation-delay:2s; animation-duration:10s; }
+    .floating-leaf:nth-child(3) { animation-delay:4s; animation-duration:12s; }
+    .floating-leaf:nth-child(4) { animation-delay:1s; animation-duration:9s; }
+
+    .section-title::after { content:''; display:block; width:60px; height:3px; background:linear-gradient(90deg,#c9a227,#1f5c37); margin-top:12px; border-radius:2px; animation: slideInRight 0.8s ease 0.3s forwards; transform:scaleX(0); transform-origin:left; }
+    .section-title.visible::after { transform:scaleX(1); transition: transform 0.8s ease 0.3s; }
+
+    .animate-pop { animation: popIn 0.5s cubic-bezier(.34,1.56,.64,1) forwards; }
+    .hero-slide.is-active .hero-text > * { animation: fadeUp 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+    /* Smooth page scroll sections — account for fixed header */
+    section { scroll-margin-top: 6.5rem; }
+    @media (min-width: 640px) { section { scroll-margin-top: 7.25rem; } }
+    @media (min-width: 1024px) { section { scroll-margin-top: 7.5rem; } }
+
+    /* Responsive foundation */
+    html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+    body { overflow-x: hidden; }
+    img, video { max-width: 100%; height: auto; }
+    .page-container { width: 100%; max-width: 80rem; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
+    @media (min-width: 640px) { .page-container { padding-left: 1.25rem; padding-right: 1.25rem; } }
+    @media (min-width: 1024px) { .page-container { padding-left: 1.5rem; padding-right: 1.5rem; } }
+
+    /* Touch-friendly: no hover lift on touch devices */
+    @media (hover: none) {
+      .product-card:hover { transform: none; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+      .product-card:hover img { transform: none; }
+      .best-card:hover { transform: none; }
+      .concern-card:hover { transform: none; }
+      .btn-lift:hover { transform: none; box-shadow: none; }
+    }
+
+    /* Safe area for notched phones */
+    @supports (padding: max(0px)) {
+      body { padding-bottom: env(safe-area-inset-bottom); }
+      #toast-container { bottom: max(1.5rem, env(safe-area-inset-bottom)); right: max(1rem, env(safe-area-inset-right)); left: max(1rem, env(safe-area-inset-left)); }
+      @media (max-width: 639px) {
+        #toast-container { right: 1rem; left: 1rem; }
+        #toast-container .toast { justify-content: center; }
+      }
+    }
+
+    /* Mobile sticky action bar */
+    .mobile-action-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      padding: 0.75rem 1rem;
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid #f3ebe0;
+      box-shadow: 0 -8px 30px rgba(0,0,0,0.08);
+    }
+    @media (min-width: 1024px) { .mobile-action-bar { display: none !important; } }
+    .has-mobile-bar { padding-bottom: 5.5rem; }
+    @media (min-width: 1024px) { .has-mobile-bar { padding-bottom: 0; } }
+
+    /* Best seller card responsive heights */
+    .best-card-inner { min-height: 22rem; }
+    @media (min-width: 640px) { .best-card-inner { min-height: 24rem; } }
+    @media (min-width: 1024px) { .best-card-inner { min-height: 28rem; } }
+
+    /* Product card compact on small phones */
+    @media (max-width: 380px) {
+      .product-card .card-body { padding: 0.625rem; }
+      .product-card .card-title { font-size: 0.8125rem; }
+      .product-card .card-price { font-size: 1rem; }
+      .product-card .add-cart-btn { font-size: 0.75rem; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+    }
+    /* Image-count badge: keep tiny on phones so it doesn't cover the product */
+    .product-card .img-count-badge {
+      font-size: 0.5rem;
+      padding: 0.15rem 0.35rem;
+      gap: 0.15rem;
+      top: 0.35rem;
+      right: 0.35rem;
+    }
+    .product-card .img-count-badge i { font-size: 0.45rem; }
+    @media (min-width: 640px) {
+      .product-card .img-count-badge {
+        font-size: 0.6875rem;
+        padding: 0.25rem 0.5rem;
+        gap: 0.25rem;
+        top: 0.75rem;
+        right: 0.75rem;
+      }
+      .product-card .img-count-badge i { font-size: 0.5625rem; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-earth-50 text-earth-900 min-h-screen flex flex-col page-enter">
+
+  <header class="site-header" id="site-header">
+    <div class="site-topbar text-white text-center py-1.5 sm:py-2 text-[11px] sm:text-xs md:text-sm font-medium tracking-wide">
+      <span class="topbar-short"><i class="fas fa-truck-fast mr-1 text-gold-400"></i> Free Delivery Above ₹499</span>
+      <span class="topbar-full">
+        <i class="fas fa-truck-fast mr-1 text-gold-400"></i> Free Delivery on Orders Above ₹499
+        <span class="mx-2 opacity-40">|</span>
+        <i class="fas fa-leaf mr-1 text-gold-400"></i> 100% Kushnath Ayurvedic Products
+      </span>
+    </div>
+
+    <nav class="site-nav max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 flex items-center justify-between gap-2 sm:gap-3">
+      <a href="/" class="flex items-center gap-2 sm:gap-3 shrink-0 group min-w-0 max-w-[58%] xs:max-w-none">
+        <img src="{{ logo_url }}" alt="Kushnath Ayurveda" class="h-8 w-8 sm:h-10 sm:w-10 md:h-11 md:w-11 rounded-full object-cover ring-2 ring-gold-500/40 logo-float group-hover:ring-gold-400 transition shrink-0">
+        <div class="min-w-0">
+          <span class="brand-title font-display text-base sm:text-xl md:text-2xl font-bold leading-none truncate text-brand-800">Kushnath</span>
+          <span class="brand-sub block text-[8px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.35em] text-brand-600">Ayurveda</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav -->
+      <div class="hidden lg:flex items-center gap-6 text-sm font-semibold uppercase tracking-widest text-brand-800">
+        <a href="{% if home_hero_nav %}#our-products{% else %}/#our-products{% endif %}" class="nav-link hover:text-gold-400 transition">Our Products</a>
+
+        <!-- Categories Dropdown -->
+        <div class="dropdown relative" id="cat-dropdown">
+          <button type="button" onclick="toggleDropdown('cat-dropdown')" class="nav-link flex items-center gap-2 hover:text-gold-400 transition cursor-pointer">
+            Categories <i class="fas fa-chevron-down text-xs transition-transform dropdown-chevron"></i>
+          </button>
+          <div class="dropdown-menu absolute top-full left-0 mt-3 w-64 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-earth-100 overflow-hidden z-50">
+            <div class="px-4 py-3 bg-brand-50 border-b border-earth-100">
+              <p class="text-xs text-brand-600 font-bold uppercase tracking-wider">Shop by Category</p>
+            </div>
+            <div class="max-h-72 overflow-y-auto py-2">
+              <a href="{% if home_hero_nav %}/#our-products{% else %}/{% endif %}" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-800 transition {% if not active_category %}bg-brand-50 font-semibold text-brand-800{% endif %}">
+                <i class="fas fa-th-large text-brand-600 w-5"></i> All Products
+              </a>
+              {% for cat in nav_categories %}
+              <a href="/?category={{ cat.id }}#our-products" class="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-800 transition {% if active_category == cat.id %}bg-brand-50 font-semibold text-brand-800{% endif %}">
+                <span><i class="fas fa-leaf text-brand-500 w-5 mr-2"></i>{{ cat.name }}</span>
+                <span class="text-xs text-gray-400">{{ cat.products.count }}</span>
+              </a>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <a href="{% if home_hero_nav %}#best-selling{% else %}/#best-selling{% endif %}" class="nav-link hover:text-gold-400 transition">Best Selling</a>
+        <a href="/cart/" class="nav-link hover:text-gold-400 transition">Cart</a>
+      </div>
+
+      {% if show_search|default:True %}
+      <form action="/" method="GET" class="hidden md:flex flex-1 max-w-sm mx-2">
+        <div class="relative w-full">
+          <input type="text" name="q" value="{{ search_q|default:'' }}" placeholder="Search products..." class="w-full pl-10 pr-4 py-2 rounded-full border border-earth-200 bg-white/70 focus:border-brand-500 outline-none text-sm transition focus:shadow-soft">
+          <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </form>
+      {% endif %}
+
+      <div class="flex items-center gap-0.5 sm:gap-1.5 md:gap-3 shrink-0">
+        <button type="button" id="mobile-menu-btn" class="lg:hidden p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-brand-800 hover:bg-brand-50 transition" onclick="toggleMobileMenu()" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <i class="fas fa-bars text-lg" data-icon="menu"></i>
+        </button>
+        <a href="/cart/" class="relative p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-brand-800 hover:bg-brand-50 transition" id="nav-cart-btn" aria-label="Cart">
+          <i class="fas fa-shopping-bag text-lg"></i>
+          <span id="cart-count" class="absolute top-0.5 right-0.5 bg-gold-500 text-brand-900 text-[10px] min-w-[1.25rem] h-5 px-1 rounded-full flex items-center justify-center font-bold hidden animate-pulse-soft">0</span>
+        </a>
+        <button type="button" onclick="toggleAuth()" class="hidden sm:flex items-center gap-2 px-3 sm:px-4 py-2 min-h-[44px] rounded-full text-sm font-semibold btn-lift transition bg-brand-700 text-white hover:bg-brand-800" id="auth-btn">
+          <i class="fas fa-user"></i> <span id="auth-text">Login</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden lg:hidden px-3 sm:px-4 py-3 sm:py-4 animate-slide-down overflow-y-auto">
+      {% if show_search|default:True %}
+      <form action="/" method="GET" class="mb-3 md:hidden">
+        <div class="relative w-full">
+          <input type="search" name="q" value="{{ search_q|default:'' }}" placeholder="Search products..." class="w-full pl-10 pr-4 py-3 min-h-[44px] rounded-xl border border-earth-200 bg-white focus:border-brand-500 outline-none text-sm">
+          <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </form>
+      {% endif %}
+      <div class="space-y-2 mb-4">
+        <a href="{% if home_hero_nav %}#our-products{% else %}/#our-products{% endif %}" onclick="closeMobileMenu()" class="block px-4 py-3 rounded-xl text-sm font-semibold min-h-[48px] flex items-center bg-brand-50 text-brand-800">Our Products</a>
+        <a href="{% if home_hero_nav %}#best-selling{% else %}/#best-selling{% endif %}" onclick="closeMobileMenu()" class="block px-4 py-3 rounded-xl text-sm font-semibold min-h-[48px] flex items-center bg-brand-50 text-brand-800">Best Selling</a>
+        <a href="/cart/" onclick="closeMobileMenu()" class="block px-4 py-3 rounded-xl text-sm font-semibold min-h-[48px] flex items-center bg-brand-50 text-brand-800"><i class="fas fa-shopping-bag mr-2"></i> Cart</a>
+        <button type="button" onclick="closeMobileMenu(); toggleAuth();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-semibold min-h-[48px] flex items-center bg-brand-50 text-brand-800"><i class="fas fa-user mr-2"></i> <span id="auth-text-mobile">Login</span></button>
+      </div>
+      <p class="text-xs uppercase tracking-wider text-brand-600 mb-2 px-2">Categories</p>
+      <div class="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto pb-2">
+        <a href="/" onclick="closeMobileMenu()" class="px-3 py-2.5 rounded-xl text-sm min-h-[44px] flex items-center bg-earth-100 text-brand-800">All</a>
+        {% for cat in nav_categories %}
+        <a href="/?category={{ cat.id }}#our-products" onclick="closeMobileMenu()" class="px-3 py-2.5 rounded-xl text-sm min-h-[44px] flex items-center truncate bg-earth-100 text-brand-800">{{ cat.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </header>
+  <div id="site-header-spacer" aria-hidden="true"></div>
+
+  <main class="flex-1">{% block content %}{% endblock %}</main>
+
+  <footer class="bg-brand-900 text-white mt-10 sm:mt-16 reveal">
+    <div class="gold-line"></div>
+    <div class="max-w-7xl mx-auto px-4 py-10 sm:py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
+      <div class="lg:col-span-1">
+        <div class="flex items-center gap-3 mb-4">
+          <img src="{{ logo_url }}" alt="Logo" class="h-12 w-12 rounded-full ring-2 ring-gold-500/50 logo-float">
+          <div>
+            <span class="font-display text-2xl font-bold">Kushnath Ayurveda</span>
+            <p class="text-xs text-white/50 uppercase tracking-widest">Since Panipat</p>
+          </div>
+        </div>
+        <p class="text-sm text-white/70 leading-relaxed">Authentic Ayurvedic formulations for beauty, immunity, digestion, hair care and daily wellness.</p>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4 text-gold-400 uppercase tracking-wider text-sm">Shop</h4>
+        <ul class="space-y-2 text-sm text-white/70">
+          <li><a href="/#our-products" class="hover:text-white transition hover:translate-x-1 inline-block">Our Products</a></li>
+          <li><a href="/#best-selling" class="hover:text-white transition hover:translate-x-1 inline-block">Best Selling</a></li>
+          <li><a href="/cart/" class="hover:text-white transition hover:translate-x-1 inline-block">Your Cart</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4 text-gold-400 uppercase tracking-wider text-sm">Why Kushnath</h4>
+        <ul class="space-y-2 text-sm text-white/70">
+          <li><i class="fas fa-leaf mr-2 text-gold-400"></i>100% Natural Herbs</li>
+          <li><i class="fas fa-certificate mr-2 text-gold-400"></i>Certified Ayurvedic</li>
+          <li><i class="fas fa-truck mr-2 text-gold-400"></i>Fast Pan-India Delivery</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="font-semibold mb-4 text-gold-400 uppercase tracking-wider text-sm">Contact</h4>
+        <ul class="space-y-2 text-sm text-white/70">
+          <li><i class="fas fa-map-marker-alt mr-2"></i>Panipat, Haryana 132101</li>
+          <li><i class="fas fa-globe mr-2"></i>www.kushnathayurveda.com</li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-white/10 text-center py-5 text-sm text-white/40">&copy; 2026 M/S Kushnath Ayurveda. All rights reserved.</div>
+  </footer>
+
+  <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-2"></div>
+
+  <script>
+    const CART_KEY = 'kushnath_cart';
+    const AUTH_KEY = 'kushnath_auth';
+    let PRODUCT_CATALOG = [];
+
+    function syncHeaderSpacer() {
+      const header = document.getElementById('site-header');
+      const spacer = document.getElementById('site-header-spacer');
+      if (header && spacer) spacer.style.height = `${header.offsetHeight}px`;
+    }
+    function setMobileMenuOpen(open) {
+      const menu = document.getElementById('mobile-menu');
+      const btn = document.getElementById('mobile-menu-btn');
+      const icon = btn?.querySelector('[data-icon="menu"]');
+      if (!menu) return;
+      menu.classList.toggle('hidden', !open);
+      document.body.classList.toggle('nav-open', open);
+      if (btn) {
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      }
+      if (icon) {
+        icon.classList.toggle('fa-bars', !open);
+        icon.classList.toggle('fa-times', open);
+      }
+      requestAnimationFrame(syncHeaderSpacer);
+    }
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      setMobileMenuOpen(!!menu?.classList.contains('hidden'));
+    }
+    function closeMobileMenu() {
+      setMobileMenuOpen(false);
+    }
+    function toggleDropdown(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('open');
+      document.querySelectorAll('.dropdown').forEach(d => { if (d.id !== id) d.classList.remove('open'); });
+    }
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.dropdown')) document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+    });
+
+    // Scroll reveal
+    const revealObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          entry.target.querySelectorAll('.reveal-child').forEach((child, i) => {
+            child.style.transitionDelay = `${i * 0.06}s`;
+            setTimeout(() => child.classList.add('visible'), 50);
+          });
+        }
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+    document.addEventListener('DOMContentLoaded', () => {
+      syncHeaderSpacer();
+      window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024) closeMobileMenu();
+        syncHeaderSpacer();
+      });
+      window.addEventListener('orientationchange', () => setTimeout(syncHeaderSpacer, 150));
+      document.querySelectorAll('.reveal, .reveal-left, .reveal-scale, .reveal-stagger, .section-title').forEach(el => revealObserver.observe(el));
+      // Parallax hero — active slide only
+      const hero = document.getElementById('hero');
+      if (hero) {
+        window.addEventListener('scroll', () => {
+          const bg = hero.querySelector('.hero-slide.is-active .hero-bg');
+          if (bg && window.scrollY < hero.offsetHeight) {
+            bg.style.transform = `scale(1.1) translateY(${window.scrollY * 0.2}px)`;
+          }
+        }, { passive: true });
+      }
+    });
+
+    function getCart() { try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
+    function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartCount(); }
+    function findProduct(id) { return PRODUCT_CATALOG.find(p => p.id == id); }
+    function addToCart(productOrId) {
+      let product = typeof productOrId === 'object' ? productOrId : findProduct(productOrId);
+      if (!product) { showToast('Product not found', 'error'); return; }
+      let cart = getCart();
+      const idx = cart.findIndex(i => i.id === product.id);
+      if (idx > -1) cart[idx].qty += 1;
+      else cart.push({ id: product.id, name: product.name, price: product.sale_price, image: product.image, qty: 1, stock: product.stock });
+      saveCart(cart);
+      showToast(`${product.name} added to cart!`);
+      animateCartIcon();
+    }
+    function removeFromCart(id) { saveCart(getCart().filter(i => i.id !== id)); }
+    function updateQty(id, delta) {
+      let cart = getCart();
+      const idx = cart.findIndex(i => i.id === id);
+      if (idx > -1) { cart[idx].qty = Math.max(1, Math.min(cart[idx].stock || 99, cart[idx].qty + delta)); saveCart(cart); }
+    }
+    function getCartTotal() { return getCart().reduce((s, i) => s + i.price * i.qty, 0); }
+    function getCartCount() { return getCart().reduce((s, i) => s + i.qty, 0); }
+    function updateCartCount() {
+      const el = document.getElementById('cart-count');
+      const n = getCartCount();
+      if (el) { el.textContent = n; el.classList.toggle('hidden', n === 0); }
+    }
+    function animateCartIcon() {
+      const btn = document.getElementById('nav-cart-btn');
+      if (btn) { btn.classList.add('cart-bounce'); setTimeout(() => btn.classList.remove('cart-bounce'), 400); }
+    }
+    function showToast(msg, type='success') {
+      const c = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      el.className = `toast ${type==='success'?'bg-brand-700':'bg-red-500'} text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2`;
+      el.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i>${msg}`;
+      c.appendChild(el);
+      setTimeout(() => el.remove(), 2500);
+    }
+    function getAuth() { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch { return null; } }
+    function setAuth(d) { localStorage.setItem(AUTH_KEY, JSON.stringify(d)); updateAuthUI(); }
+    function logout() { localStorage.removeItem(AUTH_KEY); updateAuthUI(); showToast('Logged out'); }
+    function updateAuthUI() {
+      const t = document.getElementById('auth-text');
+      const tm = document.getElementById('auth-text-mobile');
+      const label = getAuth() ? 'Account' : 'Login';
+      if (t) t.textContent = label;
+      if (tm) tm.textContent = label;
+    }
+    function toggleAuth() { getAuth() ? (confirm('Log out?') && logout()) : showLoginModal(); }
+
+    function loginModalHtml(step = 'phone') {
+      const phoneStepHidden = step === 'otp' ? 'hidden' : '';
+      const otpStepHidden = step === 'otp' ? '' : 'hidden';
+      return `<div class="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl animate-fade-up max-h-[90vh] overflow-y-auto" style="animation:fadeUp 0.4s ease forwards">
+        <div class="text-center mb-6">
+          <img src="{{ logo_url }}" class="h-12 w-12 sm:h-14 sm:w-14 rounded-full mx-auto mb-3 ring-2 ring-gold-400 logo-float">
+          <h3 id="login-modal-title" class="font-display text-xl sm:text-2xl font-bold text-brand-800">${step === 'otp' ? 'Verify OTP' : 'Login'}</h3>
+          <p id="login-modal-desc" class="text-sm text-gray-500 mt-1">${step === 'otp' ? 'Enter the 6-digit code sent to your phone' : 'Enter your mobile number to receive OTP'}</p>
+        </div>
+        <div id="login-phone-step" class="${phoneStepHidden}">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5" for="login-phone">Phone Number</label>
+          <input id="login-phone" type="tel" maxlength="10" inputmode="numeric" placeholder="10-digit mobile" class="w-full px-4 py-3 border border-earth-200 rounded-xl mb-2 outline-none focus:border-brand-500 transition text-base min-h-[48px]">
+          <p class="text-xs text-gray-400 mb-4">We'll send a verification code to this number</p>
+          <button type="button" id="login-send-btn" onclick="sendLoginOtp()" class="w-full py-3.5 bg-brand-700 text-white rounded-xl font-semibold hover:bg-brand-800 btn-lift min-h-[48px]">Send OTP</button>
+        </div>
+        <div id="login-otp-step" class="${otpStepHidden}">
+          <label class="block text-sm font-medium text-gray-700 mb-1.5" for="login-otp">Verification Code</label>
+          <input id="login-otp" type="tel" maxlength="6" inputmode="numeric" placeholder="Enter 6-digit code" class="w-full px-4 py-3 border border-earth-200 rounded-xl mb-2 outline-none focus:border-brand-500 transition text-base min-h-[48px] tracking-[0.35em] text-center">
+          <p id="login-otp-hint" class="text-xs text-gray-400 mb-4"></p>
+          <button type="button" id="login-verify-btn" onclick="verifyLoginOtp()" class="w-full py-3.5 bg-brand-700 text-white rounded-xl font-semibold hover:bg-brand-800 btn-lift min-h-[48px] mb-2">Verify & Continue</button>
+          <div class="flex items-center justify-between gap-3">
+            <button type="button" onclick="backToPhoneStep()" class="text-sm text-brand-700 font-semibold min-h-[44px]">Back</button>
+            <button type="button" id="login-resend-btn" onclick="sendLoginOtp(true)" class="text-sm text-gray-500 min-h-[44px]" disabled>Resend OTP</button>
+          </div>
+        </div>
+        <div id="recaptcha-container" class="sr-only" aria-hidden="true"></div>
+        <button type="button" onclick="closeLoginModal()" class="w-full py-2 text-gray-400 text-sm mt-4 min-h-[44px]">Cancel</button>
+      </div>`;
+    }
+
+    function closeLoginModal() {
+      document.getElementById('login-modal')?.remove();
+      window.cleanupLoginRecaptcha?.();
+    }
+
+    function showLoginModal() {
+      if (document.getElementById('login-modal')) return;
+      const m = document.createElement('div');
+      m.id = 'login-modal';
+      m.className = 'fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in';
+      m.innerHTML = loginModalHtml('phone');
+      document.body.appendChild(m);
+      m.onclick = e => { if (e.target === m) closeLoginModal(); };
+    }
+
+    function showOtpStep(normalizedPhone) {
+      const modal = document.getElementById('login-modal');
+      if (!modal) return;
+      modal.querySelector('.bg-white').outerHTML = loginModalHtml('otp');
+      const phoneInput = document.getElementById('login-phone');
+      if (phoneInput) {
+        phoneInput.value = normalizedPhone.replace(/^\+91/, '');
+        phoneInput.dataset.normalized = normalizedPhone;
+      }
+      const hint = document.getElementById('login-otp-hint');
+      if (hint) hint.textContent = `Code sent to ${normalizedPhone}`;
+      document.getElementById('login-otp')?.focus();
+    }
+
+    function backToPhoneStep() {
+      const modal = document.getElementById('login-modal');
+      if (!modal) return;
+      modal.querySelector('.bg-white').outerHTML = loginModalHtml('phone');
+      window.cleanupLoginRecaptcha?.();
+    }
+
+    function startOtpResendCountdown(seconds) {
+      const btn = document.getElementById('login-resend-btn');
+      if (!btn) return;
+      let remaining = seconds;
+      btn.disabled = true;
+      btn.textContent = `Resend OTP (${remaining}s)`;
+      clearInterval(window._otpResendTimer);
+      window._otpResendTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(window._otpResendTimer);
+          btn.disabled = false;
+          btn.textContent = 'Resend OTP';
+        } else {
+          btn.textContent = `Resend OTP (${remaining}s)`;
+        }
+      }, 1000);
+    }
+    updateCartCount(); updateAuthUI();
+  </script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+    import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+
+    const firebaseConfig = {{ firebase_config_json|safe }};
+    let firebaseAuth = null;
+    let confirmationResult = null;
+    let recaptchaVerifier = null;
+
+    if (firebaseConfig && firebaseConfig.apiKey) {
+      const app = initializeApp(firebaseConfig);
+      firebaseAuth = getAuth(app);
+    }
+
+    function normalizePhone(raw) {
+      const digits = String(raw || '').replace(/\D/g, '');
+      if (!digits || digits.length < 10) return null;
+      const ten = digits.length > 10 ? digits.slice(-10) : digits;
+      return '+91' + ten;
+    }
+
+    function mapFirebaseError(err) {
+      const code = err?.code || '';
+      const map = {
+        'auth/invalid-phone-number': 'Invalid phone number format.',
+        'auth/too-many-requests': 'Too many attempts. Please try again later.',
+        'auth/quota-exceeded': 'SMS quota exceeded. Try again later.',
+        'auth/recaptcha-not-rendered': 'reCAPTCHA not loaded. Refresh and try again.',
+        'auth/configuration-not-found': 'Phone authentication is not enabled in Firebase.',
+        'auth/operation-not-allowed': 'SMS is not allowed for this region.',
+        'auth/billing-not-enabled': 'Firebase billing must be enabled for SMS OTP.',
+        'auth/unauthorized-domain': 'This domain is not authorized in Firebase.',
+        'auth/invalid-verification-code': 'Invalid verification code.',
+        'auth/code-expired': 'Verification code has expired. Request a new OTP.',
+      };
+      return map[code] || err?.message || 'Authentication failed';
+    }
+
+    async function ensureRecaptcha() {
+      if (!firebaseAuth) throw new Error('Firebase is not configured');
+      if (recaptchaVerifier) {
+        try { recaptchaVerifier.clear(); } catch (_) {}
+        recaptchaVerifier = null;
+      }
+      recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', { size: 'invisible' });
+      await recaptchaVerifier.render();
+    }
+
+    window.cleanupLoginRecaptcha = function() {
+      if (recaptchaVerifier) {
+        try { recaptchaVerifier.clear(); } catch (_) {}
+        recaptchaVerifier = null;
+      }
+      confirmationResult = null;
+    };
+
+    async function backendLogin(normalizedPhone) {
+      const r = await fetch('/api/token/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: normalizedPhone, password: normalizedPhone }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.access) throw new Error(d.error || d.detail || 'Backend authentication failed');
+      return d;
+    }
+
+    window.sendLoginOtp = async function(isResend = false) {
+      if (!firebaseAuth) { showToast('Firebase OTP is not configured', 'error'); return; }
+      const phoneEl = document.getElementById('login-phone');
+      const btn = document.getElementById('login-send-btn') || document.getElementById('login-resend-btn');
+      const normalized = normalizePhone(phoneEl?.value || phoneEl?.dataset?.normalized);
+      if (!normalized) { showToast('Enter a valid 10-digit mobile number', 'error'); return; }
+
+      if (btn) { btn.disabled = true; btn.textContent = isResend ? 'Resending...' : 'Sending...'; }
+      try {
+        window.cleanupLoginRecaptcha();
+        await ensureRecaptcha();
+        confirmationResult = await signInWithPhoneNumber(firebaseAuth, normalized, recaptchaVerifier);
+        if (phoneEl) phoneEl.dataset.normalized = normalized;
+        const onOtpStep = document.getElementById('login-otp-step') && !document.getElementById('login-otp-step').classList.contains('hidden');
+        if (!onOtpStep) showOtpStep(normalized);
+        showToast(isResend ? 'OTP sent again' : 'OTP sent to your mobile');
+        startOtpResendCountdown(30);
+      } catch (err) {
+        showToast(mapFirebaseError(err), 'error');
+        window.cleanupLoginRecaptcha();
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = isResend ? 'Resend OTP' : 'Send OTP';
+        }
+      }
+    };
+
+    window.verifyLoginOtp = async function() {
+      const otp = document.getElementById('login-otp')?.value?.trim();
+      const phoneEl = document.getElementById('login-phone');
+      const normalized = phoneEl?.dataset?.normalized || normalizePhone(phoneEl?.value);
+      const btn = document.getElementById('login-verify-btn');
+
+      if (!confirmationResult) { showToast('Please request OTP first', 'error'); return; }
+      if (!otp || otp.length < 6) { showToast('Enter the 6-digit OTP', 'error'); return; }
+      if (!normalized) { showToast('Phone number missing', 'error'); return; }
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
+      try {
+        await confirmationResult.confirm(otp);
+        const d = await backendLogin(normalized);
+        setAuth({ phone: normalized, access: d.access, refresh: d.refresh, user: d.user });
+        closeLoginModal();
+        showToast('Authentication successful!');
+        window.cleanupLoginRecaptcha();
+      } catch (err) {
+        try { await signOut(firebaseAuth); } catch (_) {}
+        showToast(mapFirebaseError(err), 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Verify & Continue'; }
+      }
+    };
+  </script>
+  {% block extra_js %}{% endblock %}
+  <script>
+    (function(){
+      if (!PRODUCT_CATALOG.length) return;
+      const valid = new Set(PRODUCT_CATALOG.map(p => p.id));
+      const cart = getCart();
+      const next = cart.filter(i => valid.has(i.id));
+      if (next.length !== cart.length) saveCart(next);
+    })();
+  </script>
+</body>
+</html>

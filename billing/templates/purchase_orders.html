@@ -1,0 +1,121 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Purchase Orders - BMS Pro{% endblock %}
+{% block page_title %}Purchase Orders & Procurement{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Card -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">Procurement Management</h4>
+                <p class="text-secondary mb-0">Record vendor orders and receive inventory stock updates.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'billing:create_purchase_order' %}" class="btn-bms-primary">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>New Purchase Order</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Orders Table Container -->
+    <div class="bms-table-container">
+        <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center">
+            <div class="header-search" style="width: 320px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="poSearchInput" placeholder="Search PO # or Supplier name..." autocomplete="off">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table bms-table align-middle" id="poTable">
+                <thead>
+                    <tr>
+                        <th>PO #</th>
+                        <th>Supplier</th>
+                        <th>Order Date</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Total Amount</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in orders %}
+                    <tr>
+                        <td class="fw-bold text-dark">
+                            <a href="{% url 'billing:purchase_order_detail' po.id %}" class="text-dark hover-green">#{{ po.order_number }}</a>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ po.supplier_name }}</div>
+                        </td>
+                        <td>{{ po.order_date|date:"d M Y" }}</td>
+                        <td class="text-center">
+                            {% if po.status == 'received' %}
+                            <span class="bms-badge badge-paid"><i class="fas fa-check-circle text-xs"></i> Received</span>
+                            {% elif po.status == 'ordered' %}
+                            <span class="bms-badge badge-pending"><i class="fas fa-truck text-xs"></i> Ordered</span>
+                            {% elif po.status == 'cancelled' %}
+                            <span class="bms-badge badge-overdue"><i class="fas fa-ban text-xs"></i> Cancelled</span>
+                            {% else %}
+                            <span class="bms-badge badge-draft"><i class="fas fa-file text-xs"></i> Draft</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold text-dark">₹{{ po.total_amount|floatformat:2 }}</td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{% url 'billing:purchase_order_detail' po.id %}" class="btn-bms-secondary py-1 px-2 text-xs" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if po.status != 'received' and po.status != 'cancelled' %}
+                                <form method="post" action="{% url 'billing:receive_purchase_order' po.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn-bms-primary py-1 px-2 text-xs" title="Receive & Update Stock">
+                                        <i class="fas fa-check me-1"></i> Receive
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fas fa-shopping-bag fa-3x mb-3 d-block text-muted"></i>
+                            <h5 class="fw-bold text-dark">No Purchase Orders</h5>
+                            <p class="text-secondary">Create purchase orders to restock inventory from suppliers.</p>
+                            <a href="{% url 'billing:create_purchase_order' %}" class="btn-bms-primary mt-2">
+                                <i class="fas fa-plus"></i> New Purchase Order
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('poSearchInput');
+        const table = document.getElementById('poTable');
+        
+        if (searchInput && table) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                const rows = table.querySelectorAll('tbody tr');
+
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(query) ? '' : 'none';
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

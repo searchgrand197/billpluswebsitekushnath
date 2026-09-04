@@ -1,0 +1,144 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Invoice #{{ invoice.invoice_number }} - Billvice{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Invoice #{{ invoice.invoice_number }}</h2>
+            <p class="text-muted mb-0">Created on {{ invoice.created_at|date:"d M Y" }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'billing:invoices' %}" class="btn btn-light">
+                <i class="fas fa-arrow-left me-2"></i>Back to Invoices
+            </a>
+            <a href="{% url 'billing:generate_invoice_pdf' invoice.id %}" class="btn btn-primary" target="_blank">
+                <i class="fas fa-download me-2"></i>Download PDF
+            </a>
+            {% if not invoice.is_paid %}
+            <form method="post" action="{% url 'billing:mark_invoice_paid' invoice.id %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-check me-2"></i>Mark as Paid
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Invoice Details Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="row mb-4">
+                        <div class="col-sm-6">
+                            <h5 class="mb-3">From</h5>
+                            <h6 class="mb-2">{{ company_settings.company_name }}</h6>
+                            <p class="mb-0">{{ company_settings.address|linebreaks }}</p>
+                            <p class="mb-0">Phone: {{ company_settings.phone_number }}</p>
+                            <p class="mb-0">Email: {{ company_settings.email }}</p>
+                            <p class="mb-0">GST: {{ company_settings.gst_number }}</p>
+                        </div>
+                        <div class="col-sm-6 text-sm-end">
+                            <h5 class="mb-3">Bill To</h5>
+                            <h6 class="mb-2">{{ invoice.customer_name }}</h6>
+                            <p class="mb-0">{{ invoice.customer_address|linebreaks }}</p>
+                            <p class="mb-0">Phone: {{ invoice.customer_phone }}</p>
+                            <p class="mb-0">Email: {{ invoice.customer_email }}</p>
+                            {% if invoice.customer_gst %}
+                            <p class="mb-0">GST: {{ invoice.customer_gst }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-borderless mb-0">
+                            <thead class="bg-light rounded">
+                                <tr>
+                                    <th class="py-3">Item</th>
+                                    <th class="py-3 text-center">Quantity</th>
+                                    <th class="py-3 text-end">Rate</th>
+                                    <th class="py-3 text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in invoice.items.all %}
+                                <tr>
+                                    <td>
+                                        <h6 class="mb-1">{{ item.product.name }}</h6>
+                                        <small class="text-muted">{{ item.product.description|truncatechars:100 }}</small>
+                                    </td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">Rs{{ item.rate }}</td>
+                                    <td class="text-end">Rs{{ item.amount }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="border-top">
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Subtotal:</td>
+                                    <td class="text-end">Rs{{ invoice.subtotal }}</td>
+                                </tr>
+                                {% if invoice.gst_rate > 0 %}
+                                <tr>
+                                    <td colspan="3" class="text-end">GST ({{ invoice.gst_rate }}%):</td>
+                                    <td class="text-end">Rs{{ invoice.gst_amount }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Total:</td>
+                                    <td class="text-end fw-bold">Rs{{ invoice.total_amount }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Status Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Invoice Status</h5>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle p-2 {% if invoice.is_paid %}bg-success{% else %}bg-warning{% endif %} bg-opacity-10 me-3">
+                            <i class="fas {% if invoice.is_paid %}fa-check{% else %}fa-clock{% endif %} {% if invoice.is_paid %}text-success{% else %}text-warning{% endif %}"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">Payment Status</h6>
+                            <span class="badge {% if invoice.is_paid %}bg-success{% else %}bg-warning{% endif %}">
+                                {% if invoice.is_paid %}Paid{% else %}Pending{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    {% if invoice.is_paid %}
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-2 bg-info bg-opacity-10 me-3">
+                            <i class="fas fa-calendar text-info"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">Paid On</h6>
+                            <p class="mb-0 text-muted">{{ invoice.paid_at|date:"d M Y" }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notes Card -->
+            {% if invoice.notes %}
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Notes</h5>
+                    <p class="mb-0">{{ invoice.notes|linebreaks }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

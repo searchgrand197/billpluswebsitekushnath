@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Billvice">
+  <rect width="64" height="64" rx="14" fill="#E8F5F1"/>
+  <g fill="none" stroke="#0F766E" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- leaf body (Lucide-style) -->
+    <path d="M32 52c-10.5 0-19-8.5-19-19 0-11 8-18 19-23 11 5 19 12 19 23 0 10.5-8.5 19-19 19z"/>
+    <!-- center vein -->
+    <path d="M32 52V18"/>
+    <!-- side veins -->
+    <path d="M32 34c-5-2-9-6-11-10"/>
+    <path d="M32 34c5-2 9-6 11-10"/>
+    <path d="M32 42c-4-1-8-4-10-7"/>
+    <path d="M32 42c4-1 8-4 10-7"/>
+  </g>
+</svg>

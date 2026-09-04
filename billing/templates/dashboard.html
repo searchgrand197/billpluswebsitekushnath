@@ -1,0 +1,180 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Dashboard - BMS Pro{% endblock %}
+{% block page_title %}Dashboard Overview{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Quick Actions Banner -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">Business Management Workspace</h4>
+                <p class="text-secondary mb-0">Overview of sales, inventory, and quick business actions.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'billing:create_invoice' %}" class="btn-bms-primary">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Create Invoice</span>
+                </a>
+                <a href="{% url 'billing:add_product' %}" class="btn-bms-secondary">
+                    <i class="fas fa-box-open"></i>
+                    <span>Add Product</span>
+                </a>
+                <a href="{% url 'billing:reports' %}" class="btn-bms-secondary">
+                    <i class="fas fa-chart-line"></i>
+                    <span>View Reports</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat KPI Cards Grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Products</span>
+                    <div class="stat-value">{{ total_products }}</div>
+                    <small class="text-muted"><i class="fas fa-cubes text-success me-1"></i> Active Items</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-box"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Low Stock Warning</span>
+                    <div class="stat-value text-warning">{{ low_stock_count }}</div>
+                    <small class="text-muted"><i class="fas fa-exclamation-triangle text-warning me-1"></i> Reorder Soon</small>
+                </div>
+                <div class="stat-icon" style="background: #FEF3C7; color: #D97706;">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Out of Stock</span>
+                    <div class="stat-value text-danger">{{ out_of_stock_count }}</div>
+                    <small class="text-muted"><i class="fas fa-times-circle text-danger me-1"></i> Zero Inventory</small>
+                </div>
+                <div class="stat-icon" style="background: #FEE2E2; color: #DC2626;">
+                    <i class="fas fa-ban"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Stock Valuation</span>
+                    <div class="stat-value text-success">₹{{ total_value|floatformat:2 }}</div>
+                    <small class="text-muted"><i class="fas fa-vault text-success me-1"></i> Asset Value</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Tables Grid -->
+    <div class="row g-4">
+        <!-- Recent Products -->
+        <div class="col-12 col-lg-8">
+            <div class="bms-card">
+                <div class="bms-card-header">
+                    <h5 class="bms-card-title"><i class="fas fa-history text-muted me-2"></i>Recent Products</h5>
+                    <a href="{% url 'billing:products' %}" class="btn-bms-secondary text-sm py-1 px-3">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table bms-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Unit Price</th>
+                                <th>Available Stock</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in recent_products %}
+                            <tr>
+                                <td class="fw-semibold text-dark">{{ product.name }}</td>
+                                <td>{{ product.category.name|default:"General" }}</td>
+                                <td class="fw-bold">₹{{ product.price|floatformat:2 }}</td>
+                                <td>{{ product.stock.quantity|floatformat:2 }} {{ product.get_uom_display }}</td>
+                                <td>
+                                    {% if product.stock.quantity == 0 %}
+                                    <span class="bms-badge badge-overdue"><i class="fas fa-circle text-xs"></i> Out of Stock</span>
+                                    {% elif product.stock.quantity <= product.stock.low_stock_threshold %}
+                                    <span class="bms-badge badge-pending"><i class="fas fa-circle text-xs"></i> Low Stock</span>
+                                    {% else %}
+                                    <span class="bms-badge badge-paid"><i class="fas fa-circle text-xs"></i> In Stock</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    <i class="fas fa-box-open fa-2x mb-2 d-block text-muted"></i>
+                                    No products found. <a href="{% url 'billing:add_product' %}">Add your first product</a>.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Alerts -->
+        <div class="col-12 col-lg-4">
+            <div class="bms-card">
+                <div class="bms-card-header">
+                    <h5 class="bms-card-title"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Low Stock Alerts</h5>
+                    <a href="{% url 'billing:stock' %}" class="btn-bms-secondary text-sm py-1 px-3">Manage</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table bms-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock_items %}
+                            <tr>
+                                <td class="fw-semibold text-dark">{{ item.product.name }}</td>
+                                <td><span class="text-danger fw-bold">{{ item.quantity|floatformat:2 }}</span></td>
+                                <td>
+                                    <a href="{% url 'billing:update_stock' item.product.id %}" class="btn-bms-light py-1 px-2 text-xs">
+                                        <i class="fas fa-plus"></i> Restock
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted">
+                                    <i class="fas fa-check-circle text-success fa-2x mb-2 d-block"></i>
+                                    All inventory levels are healthy!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

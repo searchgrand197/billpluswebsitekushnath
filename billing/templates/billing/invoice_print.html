@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print Invoice - {{ invoice.invoice_number }}</title>
+    {% load static %}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.35;
+            color: #000;
+            background: #fff;
+            padding: 8px;
+            font-weight: 500;
+        }
+
+        /* Thermal printer (80mm) - keep existing behaviour */
+        body.thermal { max-width: 302px; margin: 0 auto; font-size: 9px; padding: 6px; }
+        body.thermal .invoice-wrapper { padding: 4px; }
+        body.thermal .brand-name { font-size: 12px; }
+        body.thermal .invoice-title-bar { font-size: 11px; }
+        body.thermal .items-table th, body.thermal .items-table td { padding: 2px 3px; font-size: 8px; }
+        body.thermal .section-title { font-size: 8px; }
+        body.thermal-58 { max-width: 220px; font-size: 8px; padding: 4px; }
+        body.thermal-58 .invoice-wrapper { padding: 3px; }
+        body.thermal-58 .brand-name { font-size: 10px; }
+        body.thermal-58 .invoice-title-bar { font-size: 10px; }
+        body.thermal-58 .items-table th, body.thermal-58 .items-table td { padding: 2px; font-size: 7px; }
+
+        .no-print {
+            margin-bottom: 10px; padding: 8px; background: #f0f0f0; border-radius: 4px;
+            display: flex; gap: 8px; align-items: center;
+        }
+        @media print { .no-print { display: none !important; } }
+        .btn-print {
+            background: #0d6efd; color: #fff; border: none; padding: 8px 16px;
+            border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 500;
+        }
+        .btn-print:hover { background: #0b5ed7; }
+
+        .invoice-wrapper {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 6px;
+            background: #fff;
+            position: relative;
+        }
+        .gst-slip-logo {
+            max-height: 56px;
+            max-width: 120px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            margin-bottom: 6px;
+        }
+        body.thermal .gst-slip-logo { max-height: 40px; max-width: 90px; }
+        body.thermal-58 .gst-slip-logo { max-height: 32px; max-width: 70px; }
+        body.thermal .invoice-wrapper.pro-layout { max-width: 100%; }
+
+        /* A4 GST print — page margin + content must fit inside printable area */
+        @page {
+            size: A4 portrait;
+            margin: 10mm 12mm;
+        }
+        @media print {
+            html, body {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .invoice-wrapper {
+                border: none !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .gst-inv { width: 100%; }
+            .gst-head-table td { padding: 6px 8px; }
+            .gst-bottom-table td { padding: 6px 8px; }
+            .gst-slip-logo { max-height: 48px; max-width: 100px; margin-bottom: 4px; }
+            .items-table { width: 100% !important; }
+            .items-table th, .items-table td { word-wrap: break-word; overflow-wrap: anywhere; }
+            .token-slip-page { padding: 0 !important; }
+            .contact-line { margin-top: 4px !important; }
+        }
+        /* Thermal roll — tighter margins, narrow page */
+        @media print {
+            body.thermal {
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+            body.thermal .invoice-wrapper {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+        }
+        @page thermal-roll {
+            size: 80mm auto;
+            margin: 2mm 3mm;
+        }
+        @page thermal-roll-58 {
+            size: 58mm auto;
+            margin: 2mm;
+        }
+        @media print {
+            body.thermal { page: thermal-roll; }
+            body.thermal-58 { page: thermal-roll-58; }
+        }
+
+        /* ---- Header: Brand left, INVOICE right with accent bar ---- */
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0;
+            gap: 12px;
+        }
+        .brand-block .brand-name {
+            font-size: 18px;
+            font-weight: 800;
+            color: #000;
+            margin-bottom: 2px;
+        }
+        .brand-block .tagline {
+            font-size: 9px;
+            color: #000;
+            line-height: 1.3;
+        }
+        .invoice-title-bar {
+            font-size: 22px;
+            font-weight: 800;
+            color: #000;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-bottom: 3px solid #000;
+            padding-bottom: 2px;
+        }
+        .invoice-title-bar .accent-bar {
+            display: none;
+        }
+        .divider-accent {
+            height: 2px;
+            background: #000;
+            margin: 4px 0 6px 0;
+        }
+
+        /* ---- Invoice to (left) | Invoice# Date (right) ---- */
+        .details-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 6px;
+        }
+        .details-row .section-title {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #000;
+            margin-bottom: 2px;
+        }
+        .invoice-to .customer-name { font-weight: 600; margin-bottom: 1px; }
+        .invoice-to p, .invoice-meta p { margin: 0; font-size: 11px; line-height: 1.35; }
+        .invoice-meta { text-align: right; }
+        .token-status-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 600;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .token-status-badge.pending { background: #e5e7eb; color: #374151; }
+        .token-status-badge.ready { background: #d1fae5; color: #065f46; }
+        .token-status-badge.preparing { background: #fef3c7; color: #92400e; }
+        .token-status-badge.delivered { background: #dbeafe; color: #1e40af; }
+
+        /* ---- Items table ---- */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+        }
+        .items-table th,
+        .items-table td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            text-align: left;
+            font-size: 11px;
+            color: #000;
+        }
+        .items-table th {
+            background: #e5e7eb; /* light grey for headings */
+            color: #000;
+            font-weight: 600;
+        }
+        .items-table .text-right { text-align: right; }
+        .items-table .text-center { text-align: center; }
+
+        /* ---- Summary: Thank you + terms (left) | Totals (right) ---- */
+        .summary-row {
+            display: flex;
+            justify-content: flex-start;
+            gap: 16px;
+            margin-bottom: 6px;
+        }
+        .totals-box {
+            border-collapse: collapse;
+            width: 100%;
+            border: 1px solid #000;
+            margin-right: 0;
+        }
+        .totals-box td {
+            padding: 6px 10px;
+            font-size: 11px;
+            border-bottom: 1px solid #000;
+            color: #000;
+        }
+        .totals-box .label {
+            text-align: right;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        .totals-box .row-shaded {
+            background: #000;
+            color: #fff;
+            font-weight: 700;
+            font-size: 13px; /* make Total / Outstanding more prominent */
+        }
+        .totals-box .row-shaded .label,
+        .totals-box .row-shaded .value {
+            color: #fff;
+        }
+
+        /* ---- Footer: Payment info (left) | Authorized sign (right) ---- */
+        .footer-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .payment-info .section-title { font-size: 8px; font-weight: 700; margin-bottom: 2px; color: #000; }
+        .payment-info p { margin: 0; font-size: 9px; line-height: 1.3; color: #000; }
+        .sign-block { text-align: right; }
+        .sign-line {
+            width: 120px;
+            border-top: 1px solid #000;
+            margin: 16px 0 2px auto;
+        }
+        .sign-label { font-size: 8px; color: #000; }
+
+        /* ---- Bottom divider + contact line ---- */
+        .bottom-divider {
+            height: 2px;
+            background: #000;
+            margin-top: 8px;
+        }
+        .contact-line {
+            text-align: center;
+            font-size: 8px;
+            color: #000;
+            margin-top: 4px;
+        }
+
+        /* Optional blocks */
+        .payment-history { margin-top: 6px; font-size: 9px; color: #000; }
+        .payment-history .section-title { color: #000; }
+        .payment-history table { width: 100%; border-collapse: collapse; }
+        .payment-history th, .payment-history td { border: 1px solid #000; padding: 2px 4px; color: #000; }
+        .payment-history th { background: #000; color: #fff; }
+        .status-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; }
+        .status-paid { background: #d4edda; color: #155724; }
+        .status-partially_paid { background: #fff3cd; color: #856404; }
+        .status-credit { background: #f8d7da; color: #721c24; }
+        .status-draft { background: #e2e3e5; color: #383d41; }
+
+        .gst-inv { border: 1px solid #000; }
+        .gst-head-table, .gst-bottom-table { width: 100%; border-collapse: collapse; }
+        .gst-head-table { border-bottom: 1px solid #000; }
+        .gst-head-table td { vertical-align: top; padding: 8px 10px; width: 33.33%; }
+        .gst-head-table .mid {
+            text-align: center; vertical-align: middle;
+            border-left: 1px solid #000; border-right: 1px solid #000;
+            font-size: 20px; font-weight: 800; letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .gst-co { font-size: 15px; font-weight: 800; margin-bottom: 2px; }
+        .gst-head-table p { font-size: 11px; margin: 0; line-height: 1.35; }
+        .gst-party { font-weight: 800; }
+        .gst-meta { margin-top: 8px; border-top: 1px solid #000; padding-top: 6px; }
+        .items-table th { background: #000; color: #fff; font-size: 9px; text-transform: uppercase; text-align: center; }
+        .items-table td { font-size: 10px; }
+        .tax-foot td { font-size: 10px; font-weight: 700; }
+        .gst-bottom-table td { padding: 8px 10px; border-top: 1px solid #000; border-right: 1px solid #000; font-size: 10px; vertical-align: top; width: 25%; }
+        .gst-bottom-table td:last-child { border-right: none; padding: 0; }
+        .gst-bottom-table .ttl { font-weight: 800; text-transform: uppercase; margin-bottom: 4px; font-size: 10px; }
+        .gst-totals { width: 100%; border-collapse: collapse; }
+        .gst-totals td { border-bottom: 1px solid #000; padding: 4px 8px; font-size: 11px; }
+        .gst-totals tr:last-child td { border-bottom: none; background: #000; color: #fff; font-weight: 800; font-size: 13px; }
+        .gst-sign { text-align: center; padding-top: 36px; }
+    </style>
+</head>
+<body class="{% if thermal %}thermal{% if printer_type == 'thermal_58mm' %} thermal-58{% endif %}{% endif %}">
+    {% if not for_pdf %}
+    <div class="no-print">
+        <button type="button" class="btn-print" onclick="window.print();">🖨️ Print Invoice</button>
+        <a href="{% url 'billing:generate_invoice_pdf' invoice.id %}" class="btn-print" style="text-decoration:none; display:inline-block; margin-left:8px;">📄 Download PDF</a>
+        <span style="color:#666;">{% if printer_name %}Printer: {{ printer_name }}. {% endif %}{% if auto_print %}Print dialog opens automatically.{% else %}Press Ctrl+P or click Print above.{% endif %}</span>
+    </div>
+    {% endif %}
+
+    <div class="invoice-wrapper pro-layout">
+            <div class="gst-inv">
+            <table class="gst-head-table">
+                <tr>
+                    <td>
+                        <img src="{% static 'img/logo.png' %}" class="gst-slip-logo" alt="{{ company_settings.company_name }}" />
+                        <div class="gst-co">{{ company_settings.company_name }}</div>
+                        <p>{{ company_settings.address_line1 }}{% if company_settings.address_line2 %}, {{ company_settings.address_line2 }}{% endif %}</p>
+                        <p>{{ company_settings.city }}, {{ company_settings.state }} {{ company_settings.postal_code }}</p>
+                        {% if company_settings.phone %}<p>Phone: {{ company_settings.phone }}</p>{% endif %}
+                        {% if company_settings.email %}<p>Email: {{ company_settings.email }}</p>{% endif %}
+                        {% if company_settings.gstin %}<p><strong>GSTIN:</strong> {{ company_settings.gstin }}</p>{% endif %}
+                        {% if company_settings.pan_number %}<p><strong>PAN:</strong> {{ company_settings.pan_number }}</p>{% endif %}
+                    </td>
+                    <td class="mid">GST Invoice</td>
+                    <td>
+                        <p class="gst-party">Party Name: {{ invoice.customer_name|default:"Walk-in Customer" }}</p>
+                        {% if invoice.customer_address %}<p>Party Address: {{ invoice.customer_address }}</p>{% endif %}
+                        {% if invoice.customer_phone %}<p>Phone: {{ invoice.customer_phone }}</p>{% endif %}
+                        {% if invoice.customer_gstin %}<p>Party GSTIN: {{ invoice.customer_gstin }}</p>{% endif %}
+                        {% with pos=invoice.customer_state|default:company_settings.state %}
+                        {% if pos %}<p><strong>Place of Supply:</strong> {{ pos }}</p>{% endif %}
+                        {% endwith %}
+                        {% if invoice.igst_amount and invoice.igst_amount > 0 %}
+                        <p><strong>Tax:</strong> Inter-state IGST</p>
+                        {% else %}
+                        <p><strong>Tax:</strong> Intra-state CGST + SGST</p>
+                        {% endif %}
+                        <div class="gst-meta">
+                            <p><strong>Invoice No.:</strong> {{ invoice.invoice_number }}</p>
+                            <p><strong>Date:</strong> {{ invoice.invoice_date|date:"d/m/Y" }}{% if invoice.created_at %} {{ invoice.created_at|date:"h:i A" }}{% endif %}</p>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table class="items-table" style="margin:0;">
+                <thead>
+                    <tr>
+                        <th>SN.</th>
+                        <th>Product Name</th>
+                        <th>HSN</th>
+                        <th>Batch</th>
+                        <th>Exp.</th>
+                        <th>MRP</th>
+                        <th>Disc%</th>
+                        <th>Rate</th>
+                        <th>GST%</th>
+                        {% if invoice.igst_amount and invoice.igst_amount > 0 %}
+                        <th>IGST</th>
+                        {% else %}
+                        <th>SGST</th>
+                        <th>CGST</th>
+                        {% endif %}
+                        <th>Qty</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in invoice.items.all %}
+                    {% with batch=item.product.batches.first %}
+                    <tr>
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td>{{ item.product.name }}</td>
+                        <td class="text-center">{{ item.product.hsn_code|default:"—" }}</td>
+                        <td class="text-center">{% if batch %}{{ batch.batch_number }}{% else %}—{% endif %}</td>
+                        <td class="text-center">{% if batch and batch.exp_date %}{{ batch.exp_date|date:"m/y" }}{% else %}—{% endif %}</td>
+                        <td class="text-right">{{ item.product.price|floatformat:2 }}</td>
+                        <td class="text-center">{{ item.disc_percent|floatformat:2 }}</td>
+                        <td class="text-right">{{ item.unit_price|floatformat:2 }}</td>
+                        <td class="text-center">{{ item.effective_gst_rate|floatformat:2 }}</td>
+                        {% if invoice.igst_amount and invoice.igst_amount > 0 %}
+                        <td class="text-right">{{ item.line_igst|floatformat:2 }}</td>
+                        {% else %}
+                        <td class="text-right">{{ item.line_sgst|floatformat:2 }}</td>
+                        <td class="text-right">{{ item.line_cgst|floatformat:2 }}</td>
+                        {% endif %}
+                        <td class="text-center">{{ item.quantity }}</td>
+                        <td class="text-right">{{ item.line_total_with_gst|floatformat:2 }}</td>
+                    </tr>
+                    {% endwith %}
+                    {% endfor %}
+                    <tr class="tax-foot">
+                        <td colspan="{% if invoice.igst_amount and invoice.igst_amount > 0 %}11{% else %}12{% endif %}">
+                            Taxable Rs {{ invoice.subtotal|floatformat:2 }}
+                            {% if invoice.igst_amount and invoice.igst_amount > 0 %}
+                            — IGST Rs {{ invoice.igst_amount|floatformat:2 }}
+                            — GST Rs {{ invoice.gst_total|floatformat:2 }}
+                            {% else %}
+                            — CGST Rs {{ invoice.cgst_amount|floatformat:2 }}
+                            — SGST Rs {{ invoice.sgst_amount|floatformat:2 }}
+                            — GST Rs {{ invoice.gst_total|floatformat:2 }}
+                            {% endif %}
+                        </td>
+                        <td class="text-right">Total Qty {{ invoice.items.all|length }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <table class="gst-bottom-table">
+                <tr>
+                    <td>
+                        <div class="ttl">Terms &amp; Conditions</div>
+                        <p>1. Goods once sold will not be taken back.</p>
+                        <p>2. Subject to local jurisdiction.</p>
+                        {% if invoice.notes %}<p><strong>Remark:</strong> {{ invoice.notes }}</p>{% endif %}
+                        {% if company_settings.invoice_footer_text %}<p>{{ company_settings.invoice_footer_text }}</p>{% endif %}
+                    </td>
+                    <td>
+                        <div class="ttl">Bank Details</div>
+                        {% if company_settings.bank_name %}<p>Bank: {{ company_settings.bank_name }}</p>{% endif %}
+                        {% if company_settings.bank_account_number %}<p>A/C No: {{ company_settings.bank_account_number }}</p>{% endif %}
+                        {% if company_settings.bank_ifsc %}<p>IFSC: {{ company_settings.bank_ifsc }}</p>{% endif %}
+                        {% if not company_settings.bank_name and not company_settings.bank_account_number %}<p>—</p>{% endif %}
+                    </td>
+                    <td class="gst-sign">
+                        <div>For {{ company_settings.company_name }}</div>
+                        <div style="margin-top:28px; border-top:1px solid #000; display:inline-block; padding-top:4px;">Authorised Signatory</div>
+                    </td>
+                    <td>
+                        <table class="gst-totals">
+                            <tr><td>SUB TOTAL</td><td class="text-right">{{ invoice.subtotal|floatformat:2 }}</td></tr>
+                            {% if invoice.igst_amount and invoice.igst_amount > 0 %}
+                            <tr><td>IGST</td><td class="text-right">{{ invoice.igst_amount|floatformat:2 }}</td></tr>
+                            {% else %}
+                            <tr><td>CGST</td><td class="text-right">{{ invoice.cgst_amount|floatformat:2 }}</td></tr>
+                            <tr><td>SGST</td><td class="text-right">{{ invoice.sgst_amount|floatformat:2 }}</td></tr>
+                            {% endif %}
+                            <tr><td>PAID</td><td class="text-right">{{ invoice.advance_paid|floatformat:2 }}</td></tr>
+                            <tr><td>DUE</td><td class="text-right">{{ invoice.outstanding_amount|floatformat:2 }}</td></tr>
+                            <tr><td>GRAND TOTAL</td><td class="text-right">{{ invoice.total_amount|floatformat:2 }}</td></tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div class="contact-line" style="margin-top:6px;">Computer Generated Invoice</div>
+    </div>
+
+    {% if show_token_page and not for_pdf %}
+    <div class="token-slip-page" style="page-break-before: always; padding: 8mm;">
+        <div class="token-slip" style="border:2px solid #000; padding:8px 20px; text-align:center; display:inline-block;">
+            <div style="font-size:9px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:2px;">Order Token</div>
+            <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+                <span style="font-size:24px; font-weight:800;">{{ display_token_number }}</span>
+                {% if invoice.created_at %}<span style="font-size:11px; color:#1e293b;">{{ invoice.created_at|date:"g:i A" }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        {% if auto_print %}
+        window.onload = function() { window.print(); };
+        {% endif %}
+    </script>
+</body>
+</html>
