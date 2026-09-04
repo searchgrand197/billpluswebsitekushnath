@@ -13,13 +13,7 @@
 # Node
 **/node_modules/
 
-# Django local
-**/db.sqlite3
-**/db.sqlite3.*
-**/staticfiles/
-*.log
-.env
-.env.*
+
 
 # IDE / OS
 .idea/
