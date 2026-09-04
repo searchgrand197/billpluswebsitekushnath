@@ -1,0 +1,96 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Ledger - {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-book me-2"></i>{{ customer.name }}</h2>
+            <p class="text-muted mb-0">
+                {% if customer.phone %}{{ customer.phone }}{% endif %}
+                {% if customer.email %} | {{ customer.email }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge {% if customer.outstanding_balance > 0 %}bg-danger{% else %}bg-success{% endif %} fs-6 p-3">
+                Outstanding: Rs{{ customer.outstanding_balance|floatformat:2 }}
+            </span>
+            <a href="{% url 'billing:payment_received' %}?party={{ customer.name|urlencode }}" class="btn btn-primary">
+                <i class="fas fa-money-bill-wave me-1"></i>Record Payment
+            </a>
+            <a href="{% url 'billing:dues_summary' %}" class="btn btn-outline-secondary">Back to Dues</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Ledger Entries</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if entries %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Debit (Bill)</th>
+                                    <th class="text-end">Credit (Payment)</th>
+                                    <th class="text-end">Balance After</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for e in entries %}
+                                <tr>
+                                    <td>{{ e.entry_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if e.entry_type == 'invoice' %}bg-primary{% elif e.entry_type == 'payment' %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ e.get_entry_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ e.description|default:"-" }}{% if e.invoice %} ({{ e.invoice.invoice_number }}){% endif %}</td>
+                                    <td class="text-end">{% if e.debit > 0 %}Rs{{ e.debit|floatformat:2 }}{% else %}-{% endif %}</td>
+                                    <td class="text-end text-success">{% if e.credit > 0 %}Rs{{ e.credit|floatformat:2 }}{% else %}-{% endif %}</td>
+                                    <td class="text-end fw-bold">Rs{{ e.balance_after|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="p-4 text-muted text-center mb-0">No ledger entries.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Payment History</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if payments %}
+                    <div class="list-group list-group-flush">
+                        {% for p in payments %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>Rs{{ p.amount|floatformat:2 }}</strong>
+                                <br><small class="text-muted">{{ p.payment_date|date:"d M Y" }} · {{ p.get_payment_method_display }}</small>
+                                {% if p.invoice %}<br><small>{{ p.invoice.invoice_number }}</small>{% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="p-3 text-muted mb-0">No payments recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

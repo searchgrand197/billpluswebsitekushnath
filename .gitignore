@@ -1,0 +1,33 @@
+﻿# Archives
+*.zip
+*.rar
+*.7z
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+**/venv/
+*.egg-info/
+
+# Node
+**/node_modules/
+**/dist/.vite/
+
+# Django / local
+**/db.sqlite3
+**/staticfiles/
+*.log
+.env
+.env.*
+
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+.DS_Store
+Thumbs.db
+
+# Optional large local copies (source trees already under merged/)
+kushnathbillvice/
+kushnathlive/

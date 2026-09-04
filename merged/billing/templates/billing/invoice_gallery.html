@@ -1,0 +1,728 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load billing_tags %}
+{% load billing_filters %}
+
+{% block title %}Invoice Gallery - Billvice{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Invoice Gallery</h5>
+            <div class="d-flex gap-2">
+                <!-- Backup/Restore Section -->
+                <div class="d-flex align-items-center me-3">
+                    <div class="status-indicator me-2">
+                        <i class="fas fa-circle text-success" id="driveStatus"></i>
+                    </div>
+                    <span class="text-muted" id="driveInfo">Checking pendrive...</span>
+                </div>
+                <button type="button" class="btn btn-primary" id="startBackup" disabled>
+                    <i class="fas fa-download"></i> Backup
+                </button>
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#restoreModal">
+                    <i class="fas fa-upload"></i> Restore
+                </button>
+                {% if invoices %}
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+                    <i class="fas fa-trash"></i> Delete All
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Search Form -->
+            <form method="get" class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <input type="text" name="customer_name" class="form-control" placeholder="Customer Name" value="{{ search_params.customer_name }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" name="date_from" class="form-control" value="{{ search_params.date_from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" name="date_to" class="form-control" value="{{ search_params.date_to }}">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Invoice Grid -->
+            <div class="row">
+                {% for invoice in invoices %}
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100 invoice-card">
+                        <div class="card-header bg-gradient">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="card-title mb-0">
+                                    <i class="fas fa-file-invoice me-2"></i>
+                                    Invoice #{{ invoice.invoice_number }}
+                                </h6>
+                                <span class="badge {% if invoice.status == 'paid' %}bg-success{% elif invoice.status == 'pending' %}bg-warning{% else %}bg-info{% endif %}">
+                                    {{ invoice.status|title }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Customer Info Section -->
+                            <div class="customer-info p-3 border-bottom">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-user-circle fa-lg text-primary me-2"></i>
+                                    <h6 class="mb-0">{{ invoice.customer_name }}</h6>
+                                </div>
+                                <div class="text-muted small">
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    {{ invoice.invoice_date|date:"d M Y" }}
+                                </div>
+                            </div>
+
+                            <!-- Items Section -->
+                            <div class="invoice-items">
+                                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                                    <table class="table table-hover mb-0">
+                                        <thead style="position: sticky; top: 0; background: #fff; z-index: 1;">
+                                            <tr>
+                                                <th class="border-0">Product</th>
+                                                <th class="border-0 text-end">Qty</th>
+                                                <th class="border-0 text-end">Days</th>
+                                                <th class="border-0 text-end">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in invoice.notes|parse_rental_details %}
+                                            <tr>
+                                                <td class="text-truncate" style="max-width: 120px;">{{ item.product }}</td>
+                                                <td class="text-end">{{ item.quantity }}</td>
+                                                <td class="text-end">{{ item.days }}</td>
+                                                <td class="text-end">Rs{{ item.amount }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Totals Section -->
+                            <div class="totals-section p-3 border-top">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Total Amount:</span>
+                                    <span class="fw-bold">Rs{{ invoice.total_amount|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Advance Paid:</span>
+                                    <span class="fw-bold text-info">Rs{{ invoice.advance_paid|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">Outstanding:</span>
+                                    <span class="fw-bold {% if invoice.outstanding_amount > 0 %}text-danger{% else %}text-success{% endif %}">
+                                        Rs{{ invoice.outstanding_amount|floatformat:2 }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <div class="d-flex justify-content-between flex-wrap gap-1">
+                                <a href="{% url 'billing:view_invoice' invoice.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i> View
+                                </a>
+                                <a href="{% url 'billing:edit_invoice' invoice.pk %}" class="btn btn-sm btn-outline-secondary" title="Add or change items and recalculate bill">
+                                    <i class="fas fa-edit me-1"></i> Update
+                                </a>
+                                <div class="btn-group">
+                                    {% if company_settings.print_bill_enabled|default:True or company_settings.print_token_enabled|default:True %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-print-invoice" title="Open print dialog"
+                                            data-print-url="{% url 'billing:invoice_print' invoice.pk %}?auto_print=1">
+                                        <i class="fas fa-print"></i>
+                                    </button>
+                                    {% endif %}
+                                    <a href="{% url 'billing:generate_invoice_pdf' invoice.pk %}" class="btn btn-sm btn-primary" target="_blank" download title="Download PDF">
+                                        <i class="fas fa-file-pdf me-1"></i> PDF
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ invoice.pk }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Modal for each invoice -->
+                <div class="modal fade" id="deleteModal{{ invoice.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ invoice.pk }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteModalLabel{{ invoice.pk }}">Delete Invoice</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                Are you sure you want to delete Invoice #{{ invoice.invoice_number }}?
+                                This action cannot be undone.
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <a href="{% url 'billing:delete_invoice' invoice.pk %}" class="btn btn-danger">Delete</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No invoices found matching your search criteria.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination: range summary + Previous | Page X of Y | Next (no page number boxes) -->
+            {% if page_obj.paginator.count %}
+            <div class="invoice-gallery-pagination mt-4" role="navigation" aria-label="Invoice pages">
+                <span class="paging-range text-muted">
+                    Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+                </span>
+                <div class="paging-controls">
+                    {% if page_obj.has_previous %}
+                    <a class="btn-pill btn-pill-prev btn-pill-active"
+                       href="?page={{ page_obj.previous_page_number }}{% if search_params.customer_name %}&customer_name={{ search_params.customer_name }}{% endif %}{% if search_params.date_from %}&date_from={{ search_params.date_from }}{% endif %}{% if search_params.date_to %}&date_to={{ search_params.date_to }}{% endif %}">
+                        Previous
+                    </a>
+                    {% else %}
+                    <span class="btn-pill btn-pill-prev btn-pill-muted" aria-disabled="true">Previous</span>
+                    {% endif %}
+
+                    <span class="paging-page-label text-muted">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+
+                    {% if page_obj.has_next %}
+                    <a class="btn-pill btn-pill-next btn-pill-primary"
+                       href="?page={{ page_obj.next_page_number }}{% if search_params.customer_name %}&customer_name={{ search_params.customer_name }}{% endif %}{% if search_params.date_from %}&date_from={{ search_params.date_from }}{% endif %}{% if search_params.date_to %}&date_to={{ search_params.date_to }}{% endif %}">
+                        Next
+                    </a>
+                    {% else %}
+                    <span class="btn-pill btn-pill-next btn-pill-muted" aria-disabled="true">Next</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+
+<!-- Delete All Modal -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1" aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteAllModalLabel">Delete All Invoices</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete all invoices? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'billing:delete_all_invoices' %}" class="btn btn-danger">Delete All</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Modal -->
+<div class="modal fade" id="restoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Restore Invoices</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Backup File</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="restorePath" readonly>
+                        <button class="btn btn-outline-secondary" type="button" id="browseRestoreBtn">
+                            <i class="fas fa-folder-open"></i> Browse
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Restore Options</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="overwriteExisting" checked>
+                        <label class="form-check-label" for="overwriteExisting">
+                            Overwrite Existing Invoices
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="restoreImages" checked>
+                        <label class="form-check-label" for="restoreImages">
+                            Restore Invoice Images
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="startRestore">
+                    <i class="fas fa-upload"></i> Start Restore
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Backup Progress Modal -->
+<div class="modal fade" id="backupProgressModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Backup Progress</h5>
+            </div>
+            <div class="modal-body">
+                <div class="progress mb-2">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         style="width: 0%" 
+                         id="backupProgress">0%</div>
+                </div>
+                <p class="text-muted mb-0" id="backupStatus">Preparing backup...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Progress Modal -->
+<div class="modal fade" id="restoreProgressModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Restore Progress</h5>
+            </div>
+            <div class="modal-body">
+                <div class="progress mb-2">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" 
+                         role="progressbar" 
+                         style="width: 0%" 
+                         id="restoreProgress">0%</div>
+                </div>
+                <p class="text-muted mb-0" id="restoreStatus">Preparing restore...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.status-indicator {
+    font-size: 1.2rem;
+}
+
+.progress {
+    height: 1.5rem;
+}
+
+.progress-bar {
+    line-height: 1.5rem;
+}
+
+.gap-2 {
+    gap: 0.5rem;
+}
+
+/* Gallery pagination: Showing X–Y of Z | [Previous] Page A of B [Next] */
+.invoice-gallery-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 14px 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.paging-range {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.paging-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.paging-page-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.btn-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    line-height: 1.2;
+}
+
+a.btn-pill:hover {
+    opacity: 0.92;
+    color: inherit;
+}
+
+/* Previous when clickable — medium grey */
+.btn-pill-prev.btn-pill-active {
+    background: #9ca3af;
+    color: #fff;
+}
+
+.btn-pill-prev.btn-pill-active:hover {
+    background: #6b7280;
+    color: #fff;
+}
+
+/* Next when clickable — blue + subtle shadow */
+.btn-pill-next.btn-pill-primary {
+    background: #2563eb;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.btn-pill-next.btn-pill-primary:hover {
+    background: #1d4ed8;
+    color: #fff;
+}
+
+/* Disabled / first-last page — muted pill */
+.btn-pill-muted {
+    background: #d1d5db;
+    color: #f9fafb;
+    cursor: not-allowed;
+    pointer-events: none;
+    opacity: 0.95;
+}
+
+/* Enhanced Card Styling */
+.invoice-card {
+    border: none;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.invoice-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.card-header.bg-gradient {
+    background: linear-gradient(45deg, #f8f9fa, #ffffff);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Customer Info Section */
+.customer-info {
+    background-color: #f8f9fa;
+}
+
+/* Table Styling */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table td {
+    font-size: 0.9rem;
+    color: #6c757d;
+    vertical-align: middle;
+}
+
+/* Totals Section */
+.totals-section {
+    background-color: #f8f9fa;
+}
+
+.totals-section .fw-bold {
+    font-size: 1.1rem;
+}
+
+/* Button Styling */
+.btn-group .btn {
+    padding: 0.375rem 0.75rem;
+}
+
+.btn-outline-primary {
+    border-width: 2px;
+}
+
+/* Scrollbar Styling */
+.table-responsive::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Badge Styling */
+.badge {
+    padding: 0.5em 0.75em;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .col-md-3 {
+        margin-bottom: 1rem;
+    }
+    
+    .invoice-card {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load jQuery first -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Print invoice: open popup window (browsers block print in hidden iframes)
+    $(document).on('click', '.btn-print-invoice', function() {
+        var url = $(this).data('print-url') || $(this).attr('data-print-url');
+        if (url) {
+            var w = window.open(url, 'InvoicePrint', 'width=800,height=700,scrollbars=yes,resizable=yes');
+            if (!w) alert('Please allow popups for this site to print.');
+        }
+    });
+
+    let backupDrivePath = null;
+    let checkInterval = null;
+
+    // Check for pendrive
+    function checkPendrive() {
+        console.log("Checking for pendrive...");
+        $.ajax({
+            url: '{% url "billing:check_pendrive" %}',
+            method: 'GET',
+            success: function(response) {
+                console.log("Pendrive check response:", response);
+                if (response.drive_detected) {
+                    $('#driveStatus').removeClass('text-danger').addClass('text-success');
+                    $('#driveInfo').html(`
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <div>
+                                <strong>Pendrive detected:</strong> ${response.drive_name}<br>
+                                <small class="text-muted">Path: ${response.drive_path}</small><br>
+                                <small class="text-muted">Size: ${response.drive_size}</small><br>
+                                <small class="text-muted">Free Space: ${response.free_space}</small>
+                            </div>
+                        </div>
+                    `);
+                    $('#startBackup').prop('disabled', false);
+                    backupDrivePath = response.drive_path;
+                    
+                    // Stop checking if drive is found
+                    if (checkInterval) {
+                        clearInterval(checkInterval);
+                    }
+                } else {
+                    $('#driveStatus').removeClass('text-success').addClass('text-danger');
+                    $('#driveInfo').html(`
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-times-circle text-danger me-2"></i>
+                            <div>
+                                <strong>No pendrive detected</strong><br>
+                                <small class="text-muted">Please insert a pendrive to enable backup</small>
+                            </div>
+                        </div>
+                    `);
+                    $('#startBackup').prop('disabled', true);
+                    backupDrivePath = null;
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error checking pendrive:', error);
+                $('#driveStatus').removeClass('text-success').addClass('text-danger');
+                $('#driveInfo').html(`
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                        <div>
+                            <strong>Error checking pendrive</strong><br>
+                            <small class="text-muted">Please try again or check your connection</small>
+                        </div>
+                    </div>
+                `);
+                $('#startBackup').prop('disabled', true);
+                backupDrivePath = null;
+            }
+        });
+    }
+
+    // Initial check
+    checkPendrive();
+
+    // Check periodically
+    checkInterval = setInterval(checkPendrive, 2000);
+
+    // Start backup
+    $('#startBackup').click(function() {
+        if (!backupDrivePath) {
+            alert('Please insert a pendrive first.');
+            return;
+        }
+
+        $('#backupProgressModal').modal('show');
+        
+        $.ajax({
+            url: '{% url "billing:start_backup" %}',
+            method: 'POST',
+            data: {
+                include_images: true,
+                compress_backup: true,
+                drive_path: backupDrivePath,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log("Backup response:", response);
+                if (response.status === 'success') {
+                    updateBackupProgress(response.progress);
+                    $('#backupStatus').text('Backup completed successfully!');
+                    setTimeout(function() {
+                        $('#backupProgressModal').modal('hide');
+                        location.reload();
+                    }, 2000);
+                } else {
+                    $('#backupStatus').text('Backup failed: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Backup error:', error);
+                $('#backupStatus').text('Backup failed: ' + (xhr.responseJSON?.message || error));
+            }
+        });
+    });
+
+    // Start restore
+    $('#startRestore').click(function() {
+        const overwriteExisting = $('#overwriteExisting').is(':checked');
+        const restoreImages = $('#restoreImages').is(':checked');
+        const backupFile = $('#restorePath').val();
+
+        if (!backupFile) {
+            alert('Please select a backup file to restore.');
+            return;
+        }
+
+        $('#restoreProgressModal').modal('show');
+        $('#restoreModal').modal('hide');
+
+        $.ajax({
+            url: '{% url "billing:start_restore" %}',
+            method: 'POST',
+            data: {
+                backup_file: backupFile,
+                overwrite_existing: overwriteExisting,
+                restore_images: restoreImages,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                console.log("Restore response:", response);
+                if (response.status === 'success') {
+                    updateRestoreProgress(response.progress);
+                    $('#restoreStatus').text('Restore completed successfully!');
+                    setTimeout(function() {
+                        $('#restoreProgressModal').modal('hide');
+                        location.reload();
+                    }, 2000);
+                } else {
+                    $('#restoreStatus').text('Restore failed: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Restore error:', error);
+                $('#restoreStatus').text('Restore failed: ' + (xhr.responseJSON?.message || error));
+            }
+        });
+    });
+
+    // Update backup progress
+    function updateBackupProgress(progress) {
+        $('#backupProgress').css('width', progress + '%').text(progress + '%');
+    }
+
+    // Update restore progress
+    function updateRestoreProgress(progress) {
+        $('#restoreProgress').css('width', progress + '%').text(progress + '%');
+    }
+
+    // Handle file selection for restore
+    $('#browseRestoreBtn').click(function() {
+        // Create a file input element
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,.zip';
+        
+        input.onchange = function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const fileName = file.name.toLowerCase();
+                console.log("Selected file name:", fileName);
+                
+                // Check if the file is a valid backup file
+                if (fileName === 'backup.json' || fileName === 'invoice_backup.zip' || fileName.endsWith('.json') || fileName.endsWith('.zip')) {
+                    // Set the full path using the pendrive path
+                    const fullPath = backupDrivePath + '/' + fileName;
+                    console.log("Setting backup file path:", fullPath);
+                    $('#restorePath').val(fullPath);
+                } else {
+                    alert('Please select a valid backup file (backup.json or invoice_backup.zip)');
+                    $('#restorePath').val('');
+                }
+            }
+        };
+        
+        input.click();
+    });
+});
+</script>
+{% endblock %} 

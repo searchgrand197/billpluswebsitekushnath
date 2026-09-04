@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Dashboard - Kushnath Ayurveda</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #0E9F6E;
+            --primary-dark: #059669;
+            --secondary-color: #1F2937;
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --danger-color: #EF4444;
+            --info-color: #3B82F6;
+            --light-bg: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --border-color: #E2E8F0;
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --text-muted: #94A3B8;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 2.5rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .dashboard-title {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stats-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stats-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+        
+        .orders-table {
+            background: var(--card-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .table-header {
+            background: var(--light-bg);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .table th {
+            border: none;
+            padding: 1.25rem 2rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            background: var(--light-bg);
+            position: relative;
+            white-space: nowrap;
+        }
+        
+        .table th.items-header {
+            min-width: 300px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+        }
+        
+        .table th.items-header::after {
+            content: '📦';
+            margin-left: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .table td {
+            border: none;
+            padding: 1.25rem 2rem;
+            vertical-align: middle;
+        }
+        
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-pending { background: #FEF3C7; color: #92400E; }
+        .status-confirmed { background: #D1FAE5; color: #065F46; }
+        .status-processing { background: #DBEAFE; color: #1E40AF; }
+        .status-shipped { background: #E0E7FF; color: #3730A3; }
+        .status-delivered { background: #D1FAE5; color: #065F46; }
+        .payment-pending { background: #FEE2E2; color: #991B1B; }
+        .payment-completed { background: #D1FAE5; color: #065F46; }
+        .payment-failed { background: #FEE2E2; color: #991B1B; }
+        
+        .method-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .method-cod { background: #F3E8FF; color: #7C3AED; }
+        .method-razorpay { background: #E0F2FE; color: #0C4A6E; }
+        
+        .items-cell {
+            max-width: 300px;
+            min-width: 280px;
+            padding: 1rem !important;
+        }
+        
+        .items-container {
+            padding: 0.5rem;
+        }
+        
+        .items-summary {
+            background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
+            border: 1px solid #BAE6FD;
+            border-radius: 8px;
+            padding: 0.5rem;
+            margin-bottom: 0.75rem;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #0C4A6E;
+        }
+        
+        .no-items {
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-muted);
+            font-style: italic;
+            background: var(--light-bg);
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+        }
+        
+        .table-responsive {
+            border-radius: 20px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        
+        .table {
+            min-width: 1200px;
+            margin-bottom: 0;
+        }
+        
+        .table th,
+        .table td {
+            white-space: nowrap;
+            min-width: 120px;
+        }
+        
+        .table th:first-child,
+        .table td:first-child {
+            min-width: 100px;
+        }
+        
+        .table th:nth-child(2),
+        .table td:nth-child(2) {
+            min-width: 150px;
+        }
+        
+        .table th:nth-child(3),
+        .table td:nth-child(3) {
+            min-width: 300px;
+        }
+        
+        .table th:nth-child(4),
+        .table td:nth-child(4) {
+            min-width: 100px;
+        }
+        
+        .table th:nth-child(5),
+        .table td:nth-child(5) {
+            min-width: 120px;
+        }
+        
+        .table th:nth-child(6),
+        .table td:nth-child(6) {
+            min-width: 120px;
+        }
+        
+        .table th:nth-child(7),
+        .table td:nth-child(7) {
+            min-width: 140px;
+        }
+        
+        .table th:nth-child(8),
+        .table td:nth-child(8) {
+            min-width: 100px;
+        }
+        
+        .table th:last-child,
+        .table td:last-child {
+            min-width: 200px;
+        }
+        
+        .table-header {
+            position: relative;
+        }
+        
+        .table-header::after {
+            content: '← Scroll right to see more columns →';
+            position: absolute;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-style: italic;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        .scroll-indicator {
+            position: sticky;
+            right: 0;
+            background: linear-gradient(90deg, transparent, var(--card-bg) 20%);
+            width: 30px;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .table tbody tr:hover {
+            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+            transform: scale(1.01);
+            transition: all 0.2s ease;
+        }
+        
+        .item-detail {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+            border: 1px solid #E2E8F0;
+            transition: all 0.2s ease;
+        }
+        
+        .item-detail:hover {
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+        
+        .item-detail:first-child {
+            margin-top: 0;
+        }
+        
+        .item-detail:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .item-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+            font-size: 0.875rem;
+            margin-right: 1rem;
+            line-height: 1.4;
+        }
+        
+        .item-quantity {
+            background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            min-width: 45px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+
+        
+        .btn {
+            border-radius: 12px;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .search-box {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 15px;
+            padding: 0.875rem 1.25rem;
+            width: 100%;
+            max-width: 350px;
+            font-size: 0.95rem;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(14, 159, 110, 0.1);
+        }
+        
+        .order-status-select {
+            min-width: 140px;
+            font-size: 0.875rem;
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+            padding: 0.5rem 0.75rem;
+        }
+        
+        .order-status-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(14, 159, 110, 0.1);
+        }
+        
+        .status-update-feedback {
+            font-size: 0.75rem;
+            min-height: 20px;
+            margin-top: 0.5rem;
+        }
+        
+        .feedback-success {
+            color: var(--success-color);
+            font-weight: 600;
+        }
+        
+        .feedback-error {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+        
+        .quick-actions {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            border-radius: 15px;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        
+        .action-btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .action-btn-primary:hover {
+            transform: translateY(-3px);
+            color: white;
+        }
+        
+        .action-btn-secondary {
+            background: var(--light-bg);
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+        }
+        
+        .action-btn-secondary:hover {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            transform: translateY(-3px);
+        }
+        
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--text-primary);
+        }
+        
+        /* Razorpay pending payment styling */
+        .razorpay-pending-row {
+            background-color: rgba(239, 68, 68, 0.1) !important;
+            border-left: 4px solid #EF4444 !important;
+        }
+        
+        .razorpay-pending-row:hover {
+            background-color: rgba(239, 68, 68, 0.15) !important;
+        }
+        
+        .razorpay-pending-row td {
+            color: rgba(30, 41, 59, 0.8) !important;
+        }
+        
+        .razorpay-pending-row .text-primary {
+            color: rgba(239, 68, 68, 0.8) !important;
+        }
+        
+        .razorpay-pending-row .text-success {
+            color: rgba(16, 185, 129, 0.8) !important;
+        }
+        
+        /* Warning icon styling for pending Razorpay payments */
+        .method-razorpay .fa-exclamation-triangle {
+            animation: pulse-warning 2s infinite;
+        }
+        
+        @keyframes pulse-warning {
+            0%, 100% { 
+                opacity: 0.6; 
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 1; 
+                transform: scale(1.1);
+            }
+        }
+        
+        /* Address column styling */
+        .delivery-address-cell {
+            max-width: 200px;
+        }
+        
+        .delivery-address-cell .fw-bold {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+        
+        .delivery-address-cell .text-muted {
+            font-size: 0.8rem;
+            line-height: 1.3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="dashboard-title">
+                        <i class="fas fa-chart-line me-3"></i>
+                        Order Management Dashboard
+                    </h1>
+                    <p class="dashboard-subtitle">
+                        Comprehensive overview and management of all orders from Kushnath Ayurveda
+                    </p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="text-lg-end">
+                        <div class="d-flex gap-2 justify-content-lg-end">
+                            <a href="http://127.0.0.1:8000/admin/" class="action-btn action-btn-secondary">
+                                <i class="fas fa-cog"></i>
+                                Admin Panel
+                            </a>
+                            <a href="http://127.0.0.1:8000/api/dashboard/" class="action-btn action-btn-primary">
+                                <i class="fas fa-home"></i>
+                                API Home
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+
+
+        <!-- Essential Statistics Row -->
+        <div class="row mb-4">
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon" style="background: linear-gradient(135deg, #DBEAFE, #BFDBFE); color: #1E40AF;">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="stats-number">{{ total_orders }}</div>
+                    <div class="stats-label">Total Orders</div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon" style="background: linear-gradient(135deg, #FEE2E2, #FECACA); color: #991B1B;">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stats-number">{{ pending_payments }}</div>
+                    <div class="stats-label">Pending Payments</div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-icon" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E;">
+                        <i class="fas fa-rupee-sign"></i>
+                    </div>
+                    <div class="stats-number">₹{{ total_revenue|floatformat:2 }}</div>
+                    <div class="stats-label">Total Revenue</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Orders Table -->
+        <div class="orders-table">
+            <div class="table-header">
+                <h5 class="table-title">
+                    <i class="fas fa-list me-2"></i>
+                    Recent Orders
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Customer Details</th>
+                            <th>Delivery Address</th>
+                            <th>Items & Quantities</th>
+                            <th>Amount</th>
+                            <th>Coupon</th>
+                            <th>Payment Method</th>
+                            <th>Payment Status</th>
+                            <th>Order Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_orders %}
+                        <tr {% if order.payment_method == 'razorpay' and order.payment_status == 'pending' %}class="razorpay-pending-row"{% endif %}>
+                            <td>
+                                <strong class="text-primary">{{ order.order_number }}</strong>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="fw-bold">{{ order.customer_name }}</div>
+                                    <small class="text-muted">{{ order.customer_email }}</small>
+                                </div>
+                            </td>
+                            <td class="delivery-address-cell">
+                                <div>
+                                    <div class="fw-bold">{{ order.delivery_city }}, {{ order.delivery_state }}</div>
+                                    <small class="text-muted">{{ order.delivery_pincode }}</small>
+                                    <br>
+                                    <small class="text-muted">{{ order.delivery_address|truncatechars:30 }}</small>
+                                </div>
+                            </td>
+                            <td class="items-cell">
+                                {% for item in order.items.all %}
+                                <div class="item-detail">
+                                    <span class="item-name">{{ item.product_name|truncatechars:25 }}</span>
+                                    <span class="item-quantity">{{ item.quantity }}</span>
+                                </div>
+                                {% empty %}
+                                <span class="text-muted">No items</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <strong class="text-success fs-5">₹{{ order.final_total|floatformat:2 }}</strong>
+                            </td>
+                            <td>
+                                {% if order.applied_coupon_code %}
+                                    <div class="text-center">
+                                        <span class="badge bg-success">{{ order.applied_coupon_code }}</span>
+                                        <br>
+                                        <small class="text-muted">
+                                            {% if order.applied_coupon_type == 'percent' %}
+                                                {{ order.applied_coupon_discount }}% OFF
+                                            {% else %}
+                                                ₹{{ order.applied_coupon_discount }} OFF
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.payment_method == 'cod' %}
+                                    <span class="method-badge method-cod">COD</span>
+                                {% else %}
+                                    <span class="method-badge method-razorpay">
+                                        Razorpay
+                                        {% if order.payment_status == 'pending' %}
+                                            <i class="fas fa-exclamation-triangle text-warning ms-1" title="Payment Pending"></i>
+                                        {% endif %}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.payment_status == 'pending' %}
+                                    <span class="status-badge payment-pending">Pending</span>
+                                {% elif order.payment_status == 'completed' %}
+                                    <span class="status-badge payment-completed">Completed</span>
+                                {% elif order.payment_status == 'failed' %}
+                                    <span class="status-badge payment-failed">Failed</span>
+                                {% else %}
+                                    <span class="status-badge status-pending">{{ order.payment_status|title }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="order-status-cell" data-order-id="{{ order.id }}">
+                                    <select class="form-select order-status-select" id="status-select-{{ order.id }}">
+                                        <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>Pending</option>
+                                        <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                        <option value="processing" {% if order.order_status == 'processing' %}selected{% endif %}>Processing</option>
+                                        <option value="shipped" {% if order.order_status == 'shipped' %}selected{% endif %}>Shipped</option>
+                                        <option value="delivered" {% if order.order_status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                        <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                        <option value="returned" {% if order.order_status == 'returned' %}selected{% endif %}>Returned</option>
+                                    </select>
+                                    <div class="status-update-feedback" id="status-feedback-{{ order.id }}"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ order.created_at|date:"M d, Y" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary" onclick="saveOrderStatus({{ order.id }})">
+                                        <i class="fas fa-save"></i>
+                                        Save
+                                    </button>
+                                    <a href="http://127.0.0.1:8000/admin/dashboard/customerorder/{{ order.id }}/change/" 
+                                       class="btn btn-outline-secondary" target="_blank">
+                                        <i class="fas fa-edit"></i>
+                                        Edit
+                                    </a>
+                                    <a href="http://127.0.0.1:8000/api/order-management/{{ order.id }}/" 
+                                       class="btn btn-outline-info" target="_blank">
+                                        <i class="fas fa-eye"></i>
+                                        View
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                                    <h5>No orders found</h5>
+                                    <p>Orders will appear here once they are created</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- All Orders Table -->
+        <div class="orders-table">
+            <div class="table-header">
+                <h5 class="table-title">
+                    <i class="fas fa-table me-2"></i>
+                    All Orders ({{ all_orders.count }})
+                </h5>
+            </div>
+            <div class="table-responsive">
+                                    <table class="table table-hover" id="allOrdersTable">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Customer Details</th>
+                                <th>Delivery Address</th>
+                                <th>Items & Quantities</th>
+                                <th>Amount</th>
+                                <th>Coupon</th>
+                                <th>Payment Method</th>
+                                <th>Payment Status</th>
+                                <th>Order Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in all_orders %}
+                            <tr class="order-row {% if order.payment_method == 'razorpay' and order.payment_status == 'pending' %}razorpay-pending-row{% endif %}" data-search="{{ order.order_number|lower }} {{ order.customer_name|lower }} {{ order.customer_email|lower }}">
+                                <td>
+                                    <strong class="text-primary">{{ order.order_number }}</strong>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div class="fw-bold">{{ order.customer_name }}</div>
+                                        <small class="text-muted">{{ order.customer_email }}</small>
+                                    </div>
+                                </td>
+                                <td class="delivery-address-cell">
+                                    <div>
+                                        <div class="fw-bold">{{ order.delivery_city }}, {{ order.delivery_state }}</div>
+                                        <small class="text-muted">{{ order.delivery_pincode }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ order.delivery_address|truncatechars:30 }}</small>
+                                    </div>
+                                </td>
+                                <td class="items-cell">
+                                    {% for item in order.items.all %}
+                                    <div class="item-detail">
+                                        <span class="item-name">{{ item.product_name|truncatechars:25 }}</span>
+                                        <span class="item-quantity">{{ item.quantity }}</span>
+                                    </div>
+                                    {% empty %}
+                                    <span class="text-muted">No items</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <strong class="text-success fs-5">₹{{ order.final_total|floatformat:2 }}</strong>
+                                </td>
+                                <td>
+                                    {% if order.applied_coupon_code %}
+                                        <div class="text-center">
+                                            <span class="badge bg-success">{{ order.applied_coupon_code }}</span>
+                                            <br>
+                                            <small class="text-muted">
+                                                {% if order.applied_coupon_type == 'percent' %}
+                                                    {{ order.applied_coupon_discount }}% OFF
+                                                {% else %}
+                                                    ₹{{ order.applied_coupon_discount }} OFF
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if order.payment_method == 'cod' %}
+                                        <span class="method-badge method-cod">COD</span>
+                                    {% else %}
+                                        <span class="method-badge method-razorpay">
+                                            Razorpay
+                                            {% if order.payment_status == 'pending' %}
+                                                <i class="fas fa-exclamation-triangle text-warning ms-1" title="Payment Pending"></i>
+                                            {% endif %}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            <td>
+                                {% if order.payment_status == 'pending' %}
+                                    <span class="status-badge payment-pending">Pending</span>
+                                {% elif order.payment_status == 'completed' %}
+                                    <span class="status-badge payment-completed">Completed</span>
+                                {% elif order.payment_status == 'failed' %}
+                                    <span class="status-badge payment-failed">Failed</span>
+                                {% else %}
+                                    <span class="status-badge status-pending">{{ order.payment_status|title }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="order-status-cell" data-order-id="{{ order.id }}">
+                                    <select class="form-select order-status-select" id="status-select-{{ order.id }}">
+                                        <option value="pending" {% if order.order_status == 'pending' %}selected{% endif %}>Pending</option>
+                                        <option value="confirmed" {% if order.order_status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                        <option value="processing" {% if order.order_status == 'processing' %}selected{% endif %}>Processing</option>
+                                        <option value="shipped" {% if order.order_status == 'shipped' %}selected{% endif %}>Shipped</option>
+                                        <option value="delivered" {% if order.order_status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                        <option value="cancelled" {% if order.order_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                        <option value="returned" {% if order.order_status == 'returned' %}selected{% endif %}>Returned</option>
+                                    </select>
+                                    <div class="status-update-feedback" id="status-feedback-{{ order.id }}"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ order.created_at|date:"M d, Y" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary" onclick="saveOrderStatus({{ order.id }})">
+                                        <i class="fas fa-save"></i>
+                                        Save
+                                    </button>
+                                    <a href="http://127.0.0.1:8000/admin/dashboard/customerorder/{{ order.id }}/change/" 
+                                       class="btn btn-outline-secondary" target="_blank">
+                                        <i class="fas fa-edit"></i>
+                                        Edit
+                                    </a>
+                                    <a href="http://127.0.0.1:8000/api/order-management/{{ order.id }}/" 
+                                       class="btn btn-outline-info" target="_blank">
+                                        <i class="fas fa-eye"></i>
+                                        View
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+                   <script>
+         // Save Order Status - Simplified function
+        async function saveOrderStatus(orderId) {
+            console.log('Saving order status for order:', orderId);
+            
+            const statusSelect = document.getElementById(`status-select-${orderId}`);
+            const feedbackElement = document.getElementById(`status-feedback-${orderId}`);
+            const saveButton = event.target;
+            
+            if (!statusSelect || !feedbackElement) {
+                console.error('Required elements not found');
+                return;
+            }
+            
+            const newStatus = statusSelect.value;
+            console.log('New status:', newStatus);
+            
+            // Show loading state
+            const originalButtonText = saveButton.innerHTML;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+            saveButton.disabled = true;
+            
+            try {
+                console.log('Sending request to:', `http://127.0.0.1:8000/api/order-management/${orderId}/order-status/`);
+                
+                const response = await fetch(`http://127.0.0.1:8000/api/order-management/${orderId}/order-status/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        order_status: newStatus
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('Response data:', result);
+                
+                if (response.ok) {
+                    feedbackElement.innerHTML = `<span class="feedback-success">✓ Status updated to ${newStatus}</span>`;
+                    setTimeout(() => {
+                        feedbackElement.innerHTML = '';
+                    }, 3000);
+                    
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    feedbackElement.innerHTML = `<span class="feedback-error">✗ Error: ${result.message || 'Failed to update status'}</span>`;
+                    setTimeout(() => {
+                        feedbackElement.innerHTML = '';
+                    }, 5000);
+                }
+            } catch (error) {
+                console.error('Error updating order status:', error);
+                feedbackElement.innerHTML = `<span class="feedback-error">✗ Network error: ${error.message}</span>`;
+                setTimeout(() => {
+                    feedbackElement.innerHTML = '';
+                }, 5000);
+            } finally {
+                saveButton.innerHTML = originalButtonText;
+                saveButton.disabled = false;
+            }
+        }
+
+        // Auto-refresh dashboard every 30 seconds
+        setInterval(function() {
+            location.reload();
+        }, 30000);
+
+        // Enhanced button animations
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // Enhanced card hover effects
+        document.querySelectorAll('.stats-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+        
+        // Enhanced table scrolling experience
+        document.querySelectorAll('.table-responsive').forEach(container => {
+            const table = container.querySelector('table');
+            
+            // Add scroll indicator
+            container.addEventListener('scroll', function() {
+                const scrollLeft = this.scrollLeft;
+                const maxScroll = this.scrollWidth - this.clientWidth;
+                
+                if (scrollLeft > 0) {
+                    this.style.setProperty('--scroll-progress', scrollLeft / maxScroll);
+                }
+            });
+            
+            // Add keyboard navigation for table scrolling
+            container.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const scrollAmount = e.key === 'ArrowRight' ? 200 : -200;
+                    this.scrollLeft += scrollAmount;
+                }
+            });
+            
+            // Make table focusable for keyboard navigation
+            table.setAttribute('tabindex', '0');
+        });
+        
+        // Show scroll hint on page load
+        window.addEventListener('load', function() {
+            const tables = document.querySelectorAll('.table-responsive');
+            tables.forEach(table => {
+                if (table.scrollWidth > table.clientWidth) {
+                    table.style.setProperty('--show-scroll-hint', '1');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

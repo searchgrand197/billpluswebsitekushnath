@@ -1,0 +1,243 @@
+{% extends "storefront/base.html" %}
+{% block title %}Checkout — Kushnath Ayurveda{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-3 sm:px-4 py-8 sm:py-10 md:py-14 reveal has-mobile-bar lg:pb-0">
+  <h1 class="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-brand-900 mb-2">Checkout</h1>
+  <p class="text-gray-500 mb-6 sm:mb-8 text-sm sm:text-base">Complete your Kushnath Ayurveda order</p>
+
+  <div class="grid lg:grid-cols-5 gap-6 sm:gap-8">
+    <!-- Order summary first on mobile -->
+    <div class="lg:col-span-2 order-1 lg:order-2">
+      <div class="bg-white rounded-2xl sm:rounded-3xl border border-earth-100 shadow-soft p-5 sm:p-6 lg:sticky lg:top-28">
+        <h2 class="font-semibold text-base sm:text-lg text-brand-900 mb-4">Your Order</h2>
+        <div id="checkout-items" class="space-y-3 max-h-48 sm:max-h-56 overflow-y-auto mb-4"></div>
+        <div class="space-y-2 text-sm border-t border-earth-100 pt-4">
+          <div class="flex justify-between text-gray-600"><span>Subtotal</span><span id="co-subtotal">₹0</span></div>
+          <div class="flex justify-between text-gray-600"><span>Delivery</span><span id="co-delivery">Free</span></div>
+          <div class="flex justify-between text-lg sm:text-xl font-bold text-brand-900 pt-2"><span>Total</span><span id="co-total">₹0</span></div>
+        </div>
+        <button id="place-order-btn" onclick="placeOrder()" class="hidden lg:flex w-full mt-6 py-4 bg-brand-700 text-white font-bold rounded-2xl hover:bg-brand-800 transition text-base sm:text-lg shadow-soft items-center justify-center min-h-[48px]">
+          <i class="fas fa-check-circle mr-2"></i>Place Order
+        </button>
+        <p class="text-center text-xs text-gray-400 mt-3 hidden lg:block"><i class="fas fa-shield-halved mr-1"></i>Secure checkout by Kushnath</p>
+      </div>
+    </div>
+
+    <div class="lg:col-span-3 space-y-5 sm:space-y-6 order-2 lg:order-1">
+      <div id="auth-prompt" class="hidden bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-4 text-sm text-amber-800">
+        <i class="fas fa-info-circle mr-1"></i> Please <button type="button" onclick="showLoginModal()" class="text-brand-700 font-bold underline">login</button> to place your order.
+      </div>
+
+      <div class="bg-white rounded-2xl sm:rounded-3xl border border-earth-100 shadow-soft p-5 sm:p-6 md:p-8">
+        <h2 class="font-semibold text-base sm:text-lg text-brand-900 mb-4 sm:mb-5 flex items-center gap-2"><span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-700 text-white flex items-center justify-center text-xs sm:text-sm shrink-0">1</span> Contact</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-1"><label class="block text-sm font-medium mb-1.5">Full Name *</label><input id="f-name" type="text" class="w-full px-4 py-3 border border-earth-200 rounded-xl outline-none focus:border-brand-500 text-base min-h-[48px]" placeholder="Your name" autocomplete="name"></div>
+          <div class="sm:col-span-1"><label class="block text-sm font-medium mb-1.5">Mobile *</label><input id="f-mobile" type="tel" maxlength="10" inputmode="numeric" class="w-full px-4 py-3 border border-earth-200 rounded-xl outline-none focus:border-brand-500 text-base min-h-[48px]" placeholder="10-digit number" autocomplete="tel"></div>
+          <div class="sm:col-span-2"><label class="block text-sm font-medium mb-1.5">Email</label><input id="f-email" type="email" class="w-full px-4 py-3 border border-earth-200 rounded-xl outline-none focus:border-brand-500 text-base min-h-[48px]" placeholder="Optional" autocomplete="email"></div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl sm:rounded-3xl border border-earth-100 shadow-soft p-5 sm:p-6 md:p-8">
+        <h2 class="font-semibold text-base sm:text-lg text-brand-900 mb-4 sm:mb-5 flex items-center gap-2"><span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-700 text-white flex items-center justify-center text-xs sm:text-sm shrink-0">2</span> Delivery Address</h2>
+        <div class="space-y-4">
+          <div><label class="block text-sm font-medium mb-1.5">Address *</label><textarea id="f-address" rows="2" class="w-full px-4 py-3 border border-earth-200 rounded-xl outline-none focus:border-brand-500 text-base resize-none" placeholder="House, Street, Locality" autocomplete="street-address"></textarea></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-sm font-medium mb-1.5">City *</label><input id="f-city" type="text" class="w-full px-4 py-3 border border-earth-200 rounded-xl outline-none focus:border-brand-500 text-base min-h-[48px]" autocomplete="address-level2"></div>
+            <div><label class="block text-sm font-medium mb-1.5">State *</label><input id="f-state" type="text" class="w-full px-4 py-3 border border-earth-200 rounded-xl outline-none focus:border-brand-500 text-base min-h-[48px]" autocomplete="address-level1"></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block text-sm font-medium mb-1.5">Pincode *</label><input id="f-pincode" type="text" maxlength="6" inputmode="numeric" class="w-full px-4 py-3 border border-earth-200 rounded-xl outline-none focus:border-brand-500 text-base min-h-[48px]" autocomplete="postal-code"></div>
+            <div><label class="block text-sm font-medium mb-1.5">Country</label><input id="f-country" value="India" readonly class="w-full px-4 py-3 border border-earth-200 rounded-xl bg-earth-50 text-base min-h-[48px]"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl sm:rounded-3xl border border-earth-100 shadow-soft p-5 sm:p-6 md:p-8">
+        <h2 class="font-semibold text-base sm:text-lg text-brand-900 mb-4 sm:mb-5 flex items-center gap-2"><span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-brand-700 text-white flex items-center justify-center text-xs sm:text-sm shrink-0">3</span> Payment</h2>
+        <div class="space-y-3">
+          <label id="pm-cod-wrap" class="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 border-2 border-brand-500 bg-brand-50 rounded-xl sm:rounded-2xl cursor-pointer min-h-[56px]">
+            <input type="radio" name="payment" value="cod" checked onchange="updatePM()" class="text-brand-700 shrink-0">
+            <i class="fas fa-money-bill-wave text-brand-700 text-lg sm:text-xl shrink-0"></i>
+            <div class="min-w-0"><p class="font-semibold text-sm sm:text-base">Cash on Delivery</p><p class="text-xs text-gray-500">Pay when you receive</p></div>
+          </label>
+          <label id="pm-prepaid-wrap" class="flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 border-2 border-earth-200 rounded-xl sm:rounded-2xl cursor-pointer min-h-[56px]">
+            <input type="radio" name="payment" value="prepaid" onchange="updatePM()" class="text-brand-700 shrink-0">
+            <i class="fas fa-credit-card text-blue-600 text-lg sm:text-xl shrink-0"></i>
+            <div class="min-w-0"><p class="font-semibold text-sm sm:text-base">Pay Online (Razorpay)</p><p class="text-xs text-gray-500">UPI, Cards, Net Banking</p></div>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile sticky place order -->
+<div class="mobile-action-bar lg:hidden">
+  <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+    <div class="min-w-0">
+      <p class="text-xs text-gray-500">Total</p>
+      <p class="text-xl font-bold text-brand-900" id="co-total-mobile">₹0</p>
+    </div>
+    <button id="place-order-btn-mobile" onclick="placeOrder()" class="flex-1 max-w-[220px] py-3.5 bg-brand-700 text-white font-bold rounded-xl text-sm min-h-[48px] flex items-center justify-center">
+      <i class="fas fa-check-circle mr-2"></i>Place Order
+    </button>
+  </div>
+</div>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  PRODUCT_CATALOG = {{ products_json|safe }};
+  const RZ_KEY = "{{ razorpay_key }}";
+
+  function updatePM() {
+    const cod = document.querySelector('input[value="cod"]').checked;
+    document.getElementById('pm-cod-wrap').className = `flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 border-2 rounded-xl sm:rounded-2xl cursor-pointer min-h-[56px] ${cod ? 'border-brand-500 bg-brand-50' : 'border-earth-200'}`;
+    document.getElementById('pm-prepaid-wrap').className = `flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 border-2 rounded-xl sm:rounded-2xl cursor-pointer min-h-[56px] ${!cod ? 'border-brand-500 bg-brand-50' : 'border-earth-200'}`;
+  }
+
+  function renderCheckout() {
+    const cart = getCart();
+    if (!cart.length) { window.location.href = '/cart/'; return; }
+    document.getElementById('checkout-items').innerHTML = cart.map(i => `
+      <div class="flex gap-3 items-center">
+        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl overflow-hidden bg-earth-50 border border-earth-100 shrink-0"><img src="${i.image}" class="w-full h-full object-contain p-0.5"></div>
+        <div class="flex-1 min-w-0"><p class="text-sm font-medium line-clamp-2">${i.name}</p><p class="text-xs text-gray-400">Qty: ${i.qty}</p></div>
+        <p class="font-bold shrink-0 text-sm sm:text-base">₹${(i.price * i.qty).toFixed(0)}</p>
+      </div>`).join('');
+    const sub = getCartTotal(), del = sub >= 499 ? 0 : 49, total = sub + del;
+    document.getElementById('co-subtotal').textContent = `₹${sub.toFixed(0)}`;
+    document.getElementById('co-delivery').textContent = del ? `₹${del}` : 'FREE';
+    document.getElementById('co-total').textContent = `₹${total.toFixed(0)}`;
+    const mob = document.getElementById('co-total-mobile');
+    if (mob) mob.textContent = `₹${total.toFixed(0)}`;
+    document.getElementById('auth-prompt').classList.toggle('hidden', !!getAuth());
+    document.body.classList.add('has-mobile-bar');
+  }
+
+  function getFormData() {
+    return {
+      name: document.getElementById('f-name').value.trim(),
+      mobile: document.getElementById('f-mobile').value.trim(),
+      email: document.getElementById('f-email').value.trim(),
+      address: document.getElementById('f-address').value.trim(),
+      city: document.getElementById('f-city').value.trim(),
+      state: document.getElementById('f-state').value.trim(),
+      pincode: document.getElementById('f-pincode').value.trim(),
+      country: document.getElementById('f-country').value.trim(),
+    };
+  }
+
+  function validate() {
+    const f = getFormData();
+    if (!f.name) return showToast('Enter your name', 'error'), false;
+    if (f.mobile.length !== 10) return showToast('Enter valid mobile', 'error'), false;
+    if (!f.address || !f.city || !f.state) return showToast('Complete address', 'error'), false;
+    if (f.pincode.length !== 6) return showToast('Enter valid pincode', 'error'), false;
+    return true;
+  }
+
+  function orderError(data) {
+    if (!data) return 'Order failed';
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.non_field_errors) && data.non_field_errors[0]) return data.non_field_errors[0];
+    const key = Object.keys(data)[0];
+    const val = key ? data[key] : null;
+    if (Array.isArray(val) && val[0]) return typeof val[0] === 'string' ? val[0] : JSON.stringify(val[0]);
+    if (typeof val === 'string') return val;
+    return 'Order failed';
+  }
+
+  function buildOrderPayload(paymentMethod, extra) {
+    const f = getFormData(), cart = getCart();
+    return {
+      customer_mobile: f.mobile,
+      recipient_name: f.name,
+      recipient_phone: f.mobile,
+      payment_method: paymentMethod,
+      delivery_address_text: f.address,
+      delivery_city: f.city,
+      delivery_state: f.state,
+      delivery_pincode: f.pincode,
+      delivery_country: f.country,
+      notes: f.email ? `Email: ${f.email}` : '',
+      order_items: cart.map(i => ({ product_id: i.id, quantity: i.qty })),
+      ...(extra || {}),
+    };
+  }
+
+  async function createShopOrder(payload, auth) {
+    const resp = await fetch('/api/orders/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${auth.access}` },
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json().catch(() => ({}));
+    return { resp, data };
+  }
+
+  function setOrderButtons(disabled, html) {
+    ['place-order-btn', 'place-order-btn-mobile'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) { btn.disabled = disabled; btn.innerHTML = html; }
+    });
+  }
+
+  async function placeOrder() {
+    if (!getAuth()) { showLoginModal(); return; }
+    if (!validate()) return;
+    setOrderButtons(true, '<i class="fas fa-spinner fa-spin"></i> Processing...');
+    const f = getFormData(), sub = getCartTotal(), ship = sub >= 499 ? 0 : 49, total = sub + ship;
+    const pm = document.querySelector('input[name="payment"]:checked').value;
+    const auth = getAuth();
+    try {
+      if (pm === 'prepaid') {
+        await payRazorpay(total, f, auth);
+        return;
+      }
+      const { resp, data } = await createShopOrder(buildOrderPayload('cod'), auth);
+      if (resp.status === 401) { showToast('Session expired', 'error'); logout(); return; }
+      if (!resp.ok) { showToast(orderError(data), 'error'); return; }
+      localStorage.removeItem(CART_KEY);
+      window.location.href = '/order-success/?order_id=' + (data.order_id || data.id);
+    } catch { showToast('Network error', 'error'); }
+    finally { setOrderButtons(false, '<i class="fas fa-check-circle mr-2"></i>Place Order'); }
+  }
+
+  async function payRazorpay(total, form, auth) {
+    const rz = await fetch('/api/rz/orderid/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: Math.round(total * 100), receipt: `kn_${Date.now()}` }),
+    });
+    const rzData = await rz.json();
+    if (!rz.ok) { showToast(rzData.error || 'Could not start payment', 'error'); return; }
+    new Razorpay({
+      key: RZ_KEY,
+      amount: rzData.amount || Math.round(total * 100),
+      currency: 'INR',
+      name: 'Kushnath Ayurveda',
+      description: 'Order Payment',
+      order_id: rzData.order_id || rzData.id,
+      handler: async (r) => {
+        const { resp, data } = await createShopOrder(buildOrderPayload('prepaid', {
+          razorpay_payment_id: r.razorpay_payment_id,
+          razorpay_order_id: r.razorpay_order_id,
+          razorpay_signature: r.razorpay_signature,
+        }), auth);
+        if (resp.ok) {
+          localStorage.removeItem(CART_KEY);
+          window.location.href = '/order-success/?order_id=' + (data.order_id || data.id);
+        } else {
+          showToast(orderError(data) || 'Payment received but order failed. Contact support.', 'error');
+        }
+      },
+      prefill: { name: form.name, contact: form.mobile, email: form.email },
+      theme: { color: '#1f5c37' },
+    }).open();
+  }
+  renderCheckout();
+</script>
+{% endblock %}

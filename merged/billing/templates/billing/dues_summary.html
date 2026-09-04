@@ -1,0 +1,99 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Outstanding Dues - BMS Pro{% endblock %}
+{% block page_title %}Outstanding Dues & Accounts Receivable{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Banner -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">Accounts Receivable & Dues</h4>
+                <p class="text-secondary mb-0">Track unpaid customer balances and log receipts.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'billing:payment_received' %}" class="btn-bms-primary">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Record Payment Received</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stat KPI Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Outstanding Dues</span>
+                    <div class="stat-value text-danger">₹{{ total_outstanding|floatformat:2 }}</div>
+                    <small class="text-muted"><i class="fas fa-exclamation-triangle text-danger me-1"></i> Pending Receivable Balance</small>
+                </div>
+                <div class="stat-icon" style="background: #FEE2E2; color: #DC2626;">
+                    <i class="fas fa-wallet"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Parties with Dues</span>
+                    <div class="stat-value text-dark">{{ customers|length }}</div>
+                    <small class="text-muted"><i class="fas fa-users text-success me-1"></i> Active Debtors</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-user-clock"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parties with Dues Table -->
+    <div class="bms-table-container">
+        <div class="bms-card-header">
+            <h5 class="bms-card-title"><i class="fas fa-user-tag me-2 text-muted"></i>Customer Due Balances</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table bms-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Party / Customer Name</th>
+                        <th>Phone Number</th>
+                        <th class="text-end">Outstanding Amount</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in customers %}
+                    <tr>
+                        <td class="fw-bold text-dark">{{ c.name }}</td>
+                        <td>{{ c.phone|default:"-" }}</td>
+                        <td class="text-end fw-bold text-danger fs-6">₹{{ c.outstanding_balance|floatformat:2 }}</td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{% url 'billing:payment_received' %}?party={{ c.name|urlencode }}" class="btn-bms-primary py-1 px-3 text-xs">
+                                    <i class="fas fa-plus me-1"></i> Record Payment
+                                </a>
+                                <a href="{% url 'billing:customer_ledger' c.id %}" class="btn-bms-secondary py-1 px-2 text-xs">
+                                    <i class="fas fa-book me-1"></i> Ledger
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="fas fa-check-circle text-success fa-3x mb-3 d-block"></i>
+                            <h5 class="fw-bold text-dark">Zero Outstanding Dues!</h5>
+                            <p class="text-secondary mb-0">All customer invoice payments are up to date.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Razorpay Payment - Kushnath Ayurveda</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .payment-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #0E9F6E 0%, #0EA5E9 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .order-summary {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .order-summary h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            text-align: center;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .summary-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .summary-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .summary-value {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .amount-display {
+            text-align: center;
+            margin: 25px 0;
+        }
+        
+        .amount-label {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .amount-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #0E9F6E;
+        }
+        
+        .pay-button {
+            width: 100%;
+            background: linear-gradient(135deg, #0E9F6E 0%, #0EA5E9 100%);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        
+        .pay-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(14, 159, 110, 0.3);
+        }
+        
+        .pay-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0E9F6E;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #fcc;
+            display: none;
+        }
+        
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .back-link a {
+            color: #0E9F6E;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="header">
+            <h1>🛒 Complete Your Order</h1>
+            <p>Secure payment powered by Razorpay</p>
+        </div>
+        
+        <div class="content">
+            {% if error %}
+                <div class="error-message" style="display: block;">
+                    <strong>Error:</strong> {{ error }}
+                </div>
+                <div class="back-link">
+                    <a href="https://www.kushnathayurveda.com/checkout">← Return to Checkout</a>
+                </div>
+            {% else %}
+                <div class="order-summary">
+                    <h3>📋 Order Summary</h3>
+                    <div class="summary-item">
+                        <span class="summary-label">Customer Name:</span>
+                        <span class="summary-value">{{ order_data.customer_name }}</span>
+                    </div>
+                    {% if order_data.customer_email %}
+                    <div class="summary-item">
+                        <span class="summary-label">Email:</span>
+                        <span class="summary-value">{{ order_data.customer_email }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="summary-item">
+                        <span class="summary-label">Phone:</span>
+                        <span class="summary-value">{{ order_data.customer_phone }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Delivery Address:</span>
+                        <span class="summary-value">{{ order_data.delivery_address }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">City:</span>
+                        <span class="summary-value">{{ order_data.delivery_city }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">State:</span>
+                        <span class="summary-value">{{ order_data.delivery_state }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Pincode:</span>
+                        <span class="summary-value">{{ order_data.delivery_pincode }}</span>
+                    </div>
+                </div>
+                
+                <div class="amount-display">
+                    <div class="amount-label">Total Amount to Pay</div>
+                    <div class="amount-value">₹{{ order_data.amount }}</div>
+                </div>
+                
+                <button id="payButton" class="pay-button" onclick="initiatePayment()">
+                    💳 Pay ₹{{ order_data.amount }}
+                </button>
+                
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Processing payment...</p>
+                </div>
+                
+                <div id="errorMessage" class="error-message"></div>
+                
+                <div class="back-link">
+                    <a href="https://www.kushnathayurveda.com/checkout">← Return to Checkout</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Order data from Django template
+        const orderData = {
+            amount: '{{ order_data.amount }}',
+            customer_name: '{{ order_data.customer_name }}',
+            customer_email: '{{ order_data.customer_email }}',
+            customer_phone: '{{ order_data.customer_phone }}',
+            delivery_address: '{{ order_data.delivery_address }}',
+            delivery_city: '{{ order_data.delivery_city }}',
+            delivery_state: '{{ order_data.delivery_state }}',
+            delivery_pincode: '{{ order_data.delivery_pincode }}'
+        };
+
+        let razorpayOrderId = null;
+
+        // Initialize payment
+        async function initiatePayment() {
+            try {
+                showLoading(true);
+                showError('');
+                
+                console.log('Initiating Razorpay payment...');
+                
+                // Create Razorpay order
+                const orderResponse = await createRazorpayOrder();
+                if (!orderResponse.success) {
+                    throw new Error(orderResponse.message || 'Failed to create Razorpay order');
+                }
+                
+                razorpayOrderId = orderResponse.order_id;
+                console.log('Razorpay order created:', orderResponse);
+                
+                // Open Razorpay payment modal
+                openRazorpayModal(orderResponse);
+                
+            } catch (error) {
+                console.error('Payment initiation error:', error);
+                showError(error.message || 'Failed to initiate payment. Please try again.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Create Razorpay order
+        async function createRazorpayOrder() {
+            try {
+                const response = await fetch('https://www.kushnathayurveda.com/api/rz/orderid/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: parseFloat(orderData.amount) * 100, // Convert to paise
+                        currency: 'INR',
+                        receipt: `order_${Date.now()}`,
+                        notes: {
+                            customer_name: orderData.customer_name,
+                            order_type: 'product_purchase'
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to create order');
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Error creating Razorpay order:', error);
+                throw error;
+            }
+        }
+
+        // Open Razorpay payment modal
+        function openRazorpayModal(orderData) {
+            try {
+                // Load Razorpay script if not already loaded
+                if (typeof Razorpay === 'undefined') {
+                    loadRazorpayScript().then(() => {
+                        openRazorpayModal(orderData);
+                    });
+                    return;
+                }
+
+                const options = {
+                    key: orderData.key_id,
+                    amount: orderData.amount,
+                    currency: orderData.currency,
+                    name: 'Kushnath Ayurveda',
+                    description: 'Order Payment',
+                    order_id: orderData.order_id,
+                    handler: handlePaymentSuccess,
+                    prefill: {
+                        name: orderData.customer_name,
+                        email: orderData.customer_email,
+                        contact: orderData.customer_phone
+                    },
+                    theme: {
+                        color: '#0E9F6E'
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            console.log('Payment modal dismissed');
+                        }
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                
+                rzp.on('payment.failed', function(response) {
+                    console.error('Payment failed:', response.error);
+                    showError(`Payment failed: ${response.error.description}`);
+                    showLoading(false);
+                });
+
+                rzp.on('payment.cancelled', function() {
+                    console.log('Payment cancelled by user');
+                    showError('Payment was cancelled');
+                    showLoading(false);
+                });
+
+                rzp.open();
+                
+            } catch (error) {
+                console.error('Error opening Razorpay modal:', error);
+                showError('Failed to open payment window. Please try again.');
+                showLoading(false);
+            }
+        }
+
+        // Load Razorpay script
+        function loadRazorpayScript() {
+            return new Promise((resolve, reject) => {
+                if (window.Razorpay) {
+                    resolve();
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.async = true;
+
+                script.onload = () => {
+                    console.log('Razorpay script loaded successfully');
+                    resolve();
+                };
+
+                script.onerror = () => {
+                    console.error('Failed to load Razorpay script');
+                    reject(new Error('Failed to load Razorpay script'));
+                };
+
+                document.body.appendChild(script);
+            });
+        }
+
+        // Handle payment success
+        function handlePaymentSuccess(response) {
+            console.log('Payment successful:', response);
+            
+            // Update payment status in Django backend
+            updatePaymentStatus(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature);
+        }
+
+        // Update payment status in Django backend
+        async function updatePaymentStatus(paymentId, orderId, signature) {
+            try {
+                console.log('Updating payment status...');
+                
+                // Get order ID from URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const orderIdParam = urlParams.get('order_id');
+                
+                if (!orderIdParam) {
+                    console.error('No order ID found in URL');
+                    showError('Order information not found. Please return to checkout and try again.');
+                    return;
+                }
+                
+                const updateData = {
+                    payment_status: 'completed',
+                    razorpay_payment_id: paymentId,
+                    razorpay_signature: signature
+                };
+                
+                const response = await fetch(`https://www.kushnathayurveda.com/api/order-management/${orderIdParam}/payment-status/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Payment status updated:', result);
+                    
+                    // Redirect to success page
+                    const successUrl = `https://www.kushnathayurveda.com/api/checkout-success/?payment_id=${paymentId}&order_id=${orderId}&amount=${orderData.amount}`;
+                    window.location.href = successUrl;
+                    
+                } else {
+                    const errorData = await response.json();
+                    console.error('Failed to update payment status:', errorData);
+                    showError('Payment was successful but order status could not be updated. Please contact support.');
+                }
+                
+            } catch (error) {
+                console.error('Error updating payment status:', error);
+                showError('Payment was successful but there was an error updating the order. Please contact support.');
+            }
+        }
+
+        // Utility functions
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const payButton = document.getElementById('payButton');
+            
+            if (show) {
+                loading.style.display = 'block';
+                payButton.disabled = true;
+                payButton.textContent = 'Processing...';
+            } else {
+                loading.style.display = 'none';
+                payButton.disabled = false;
+                payButton.textContent = `💳 Pay ₹${orderData.amount}`;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            if (message) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            } else {
+                errorDiv.style.display = 'none';
+            }
+        }
+
+        // Auto-load Razorpay script when page loads
+        window.addEventListener('load', function() {
+            console.log('Payment page loaded');
+            console.log('Order data:', orderData);
+        });
+    </script>
+</body>
+</html>

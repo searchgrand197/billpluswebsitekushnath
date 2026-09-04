@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Invoice {{ invoice.invoice_number }} - Billvice{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Invoice #{{ invoice.invoice_number }}</h5>
+                        <div>
+                            <a href="{% url 'billing:view_invoice' invoice.id %}?format=pdf" class="btn btn-primary">
+                                <i class="fas fa-download me-2"></i>Download PDF
+                            </a>
+                            <a href="{% url 'billing:invoices' %}" class="btn btn-secondary ms-2">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Invoices
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Invoice Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Bill To:</h6>
+                            <p class="mb-1">{{ invoice.customer_name }}</p>
+                            <p class="mb-1">{{ invoice.customer_address }}</p>
+                            {% if invoice.customer_gstin %}
+                            <p class="mb-1">GSTIN: {{ invoice.customer_gstin }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <p class="mb-1"><strong>Invoice Date:</strong> {{ invoice.invoice_date }}</p>
+                            <p class="mb-1"><strong>Due Date:</strong> {{ invoice.due_date }}</p>
+                            <p class="mb-1">
+                                <strong>Status:</strong>
+                                <span class="badge {% if invoice.status == 'paid' %}bg-success{% elif invoice.status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ invoice.get_status_display }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>{{ item.product.name }}</td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">Rs{{ item.unit_price|floatformat:2 }}</td>
+                                    <td class="text-end">Rs{{ item.total|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                                    <td class="text-end">Rs{{ invoice.subtotal|floatformat:2 }}</td>
+                                </tr>
+                                {% if invoice.customer_gstin %}
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>CGST (9%):</strong></td>
+                                    <td class="text-end">Rs{{ invoice.cgst_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>SGST (9%):</strong></td>
+                                    <td class="text-end">Rs{{ invoice.sgst_amount|floatformat:2 }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>IGST (18%):</strong></td>
+                                    <td class="text-end">Rs{{ invoice.igst_amount|floatformat:2 }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr class="table-info">
+                                    <td colspan="3" class="text-end"><strong>Total Amount:</strong></td>
+                                    <td class="text-end"><strong>Rs{{ invoice.total_amount|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr class="table-success">
+                                    <td colspan="3" class="text-end"><strong>Advance Paid:</strong></td>
+                                    <td class="text-end"><strong>Rs{{ invoice.advance_paid|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td colspan="3" class="text-end"><strong>Final Amount:</strong></td>
+                                    <td class="text-end"><strong>Rs{{ invoice.total_amount|subtract:invoice.advance_paid|floatformat:2 }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    {% if invoice.notes %}
+                    <div class="mt-4">
+                        <h6 class="fw-bold">Notes:</h6>
+                        <p class="mb-0">{{ invoice.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Invoice Actions -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0">Invoice Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'billing:edit_invoice' invoice.id %}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-2"></i>Edit Invoice
+                        </a>
+                        <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#markPaidModal">
+                            <i class="fas fa-check-circle me-2"></i>Mark as Paid
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal">
+                            <i class="fas fa-trash me-2"></i>Delete Invoice
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0">Payment History</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">No payments recorded yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mark as Paid Modal -->
+<div class="modal fade" id="markPaidModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mark Invoice as Paid</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to mark this invoice as paid?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'billing:mark_invoice_paid' invoice.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Mark as Paid</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Invoice Modal -->
+<div class="modal fade" id="deleteInvoiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Invoice</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this invoice? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'billing:delete_invoice' invoice.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete Invoice</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

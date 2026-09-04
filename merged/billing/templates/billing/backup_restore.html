@@ -1,0 +1,246 @@
+{% extends 'billing/base.html' %}
+{% load static %}
+
+{% block title %}Backup & Restore - BMS Pro{% endblock %}
+{% block page_title %}Database Backup & Restore{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Banner -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">Database & System Backups</h4>
+                <p class="text-secondary mb-0">Create offline ZIP pendrive backups of invoices, customers, and stock datasets.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backup & Restore Cards -->
+    <div class="row g-4 mb-4">
+        <!-- Backup Section -->
+        <div class="col-12 col-lg-6">
+            <div class="bms-card h-100">
+                <div class="bms-card-header">
+                    <h5 class="bms-card-title"><i class="fas fa-database text-success me-2"></i>Backup Database</h5>
+                </div>
+                <div class="bms-card-body">
+                    <div class="d-flex align-items-center mb-4 p-3 bg-light rounded-3 border">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3 text-success">
+                            <i class="fas fa-hdd fa-lg"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-1">Pendrive / External Storage</h6>
+                            <p class="mb-0 text-muted text-xs" id="driveInfo">Checking for connected USB drives...</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Backup Target Path</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="backupPath" readonly placeholder="USB Drive / Local Folder">
+                            <button class="btn-bms-secondary" type="button" id="browseBtn">
+                                <i class="fas fa-folder-open"></i> Browse
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="includeImages" checked>
+                            <label class="form-check-label fw-semibold" for="includeImages">
+                                Include Invoice Documents & Receipts
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="compressBackup" checked>
+                            <label class="form-check-label fw-semibold" for="compressBackup">
+                                Compress into ZIP File (.zip)
+                            </label>
+                        </div>
+                    </div>
+
+                    <button class="btn-bms-primary w-100 justify-content-center py-2" id="startBackup">
+                        <i class="fas fa-download me-2"></i> Start System Backup
+                    </button>
+
+                    <div class="backup-progress mt-4" style="display: none;">
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="backupProgress">0%</div>
+                        </div>
+                        <p class="text-muted text-xs mb-0" id="backupStatus">Preparing backup...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Restore Section -->
+        <div class="col-12 col-lg-6">
+            <div class="bms-card h-100">
+                <div class="bms-card-header">
+                    <h5 class="bms-card-title"><i class="fas fa-undo text-warning me-2"></i>Restore Database</h5>
+                </div>
+                <div class="bms-card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Backup File (.zip / .json)</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="restorePath" readonly placeholder="Choose backup archive">
+                            <button class="btn-bms-secondary" type="button" id="browseRestoreBtn">
+                                <i class="fas fa-folder-open"></i> Browse
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="overwriteExisting" checked>
+                            <label class="form-check-label fw-semibold" for="overwriteExisting">
+                                Overwrite Existing Database Invoices
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="restoreImages" checked>
+                            <label class="form-check-label fw-semibold" for="restoreImages">
+                                Restore Attached Media Files
+                            </label>
+                        </div>
+                    </div>
+
+                    <button class="btn-bms-secondary w-100 justify-content-center py-2 text-dark" id="startRestore">
+                        <i class="fas fa-upload me-2"></i> Restore System Data
+                    </button>
+
+                    <div class="restore-progress mt-4" style="display: none;">
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="restoreProgress">0%</div>
+                        </div>
+                        <p class="text-muted text-xs mb-0" id="restoreStatus">Preparing restore...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Table Card -->
+    <div class="bms-table-container">
+        <div class="bms-card-header">
+            <h5 class="bms-card-title"><i class="fas fa-history text-muted me-2"></i>Backup & Restore Activity Log</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table bms-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Action Type</th>
+                        <th>File Location</th>
+                        <th>File Size</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="backupHistory">
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            Loading backup history...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document.body).ready(function() {
+    // Check pendrive status
+    function checkDriveStatus() {
+        $.get('{% url "billing:check_pendrive" %}', function(res) {
+            if (res.connected) {
+                $('#driveInfo').text('Pendrive connected: ' + res.path);
+                $('#backupPath').val(res.path);
+                $('#startBackup').prop('disabled', false);
+            } else {
+                $('#driveInfo').text('No USB drive detected. You can select a local folder.');
+                $('#startBackup').prop('disabled', false);
+            }
+        });
+    }
+
+    checkDriveStatus();
+
+    // Start backup
+    $('#startBackup').click(function() {
+        const includeImages = $('#includeImages').is(':checked');
+        const compressBackup = $('#compressBackup').is(':checked');
+        const backupPath = $('#backupPath').val();
+
+        $('.backup-progress').show();
+        $(this).prop('disabled', true);
+
+        $.ajax({
+            url: '{% url "billing:start_backup" %}',
+            method: 'POST',
+            data: {
+                backup_path: backupPath,
+                include_images: includeImages,
+                compress_backup: compressBackup,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#backupProgress').css('width', '100%').text('100%');
+                    $('#backupStatus').text('Backup completed successfully!');
+                    loadBackupHistory();
+                } else {
+                    $('#backupStatus').text('Backup failed: ' + (response.message || 'Error occurred'));
+                }
+            },
+            error: function() {
+                $('#backupStatus').text('Backup process initiated.');
+            },
+            complete: function() {
+                $('#startBackup').prop('disabled', false);
+            }
+        });
+    });
+
+    // Load backup history
+    function loadBackupHistory() {
+        $.ajax({
+            url: '{% url "billing:get_backup_history" %}',
+            method: 'GET',
+            success: function(response) {
+                const history = response.history || [];
+                let html = '';
+                
+                if (history.length === 0) {
+                    html = '<tr><td colspan="5" class="text-center py-4 text-muted">No past backups recorded.</td></tr>';
+                } else {
+                    history.forEach(function(backup) {
+                        html += `
+                            <tr>
+                                <td>${backup.date}</td>
+                                <td><span class="badge bg-light text-dark border">${backup.type}</span></td>
+                                <td>${backup.location}</td>
+                                <td>${backup.size}</td>
+                                <td class="text-center">
+                                    <span class="bms-badge ${backup.status === 'success' ? 'badge-paid' : 'badge-overdue'}">
+                                        ${backup.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                $('#backupHistory').html(html);
+            }
+        });
+    }
+
+    loadBackupHistory();
+});
+</script>
+{% endblock %}

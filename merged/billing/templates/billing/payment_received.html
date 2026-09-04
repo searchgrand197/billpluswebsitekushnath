@@ -1,0 +1,114 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Record Payment - BMS Pro{% endblock %}
+{% block page_title %}Record Payment Received{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row g-4">
+        <!-- Form Area -->
+        <div class="col-12 col-lg-7">
+            <div class="bms-card">
+                <div class="bms-card-header">
+                    <h5 class="bms-card-title"><i class="fas fa-hand-holding-usd text-success me-2"></i>Record Customer Payment</h5>
+                </div>
+                <div class="bms-card-body">
+                    <form method="post" action="{% url 'billing:payment_received' %}">
+                        {% csrf_token %}
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Party / Customer Name *</label>
+                                <input type="text" name="party_name" class="form-control" list="partyList" placeholder="Customer name" required value="{{ request.GET.party|default:'' }}">
+                                <datalist id="partyList">
+                                    {% for c in customers_with_balance %}
+                                    <option value="{{ c.name }}">{{ c.phone }}</option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone (Optional)</label>
+                                <input type="tel" name="party_phone" class="form-control" placeholder="10-digit mobile" maxlength="10">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Linked Outstanding Invoice (Optional)</label>
+                            <select name="invoice" class="form-select" id="id_invoice">
+                                <option value="">-- General Payment (No Specific Invoice) --</option>
+                                {% for inv in form.fields.invoice.queryset %}
+                                <option value="{{ inv.id }}" {% if selected_invoice_id and selected_invoice_id == inv.id %}selected{% endif %}>
+                                    #{{ inv.invoice_number }} - {{ inv.customer_name }} (₹{{ inv.outstanding_amount }} due)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Amount Received (₹) *</label>
+                                <input type="number" name="amount" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Payment Mode</label>
+                                <select name="payment_method" class="form-select">
+                                    <option value="cash">Cash</option>
+                                    <option value="upi">UPI / Online</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="card">Debit / Credit Card</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Transaction Notes / Reference #</label>
+                            <input type="text" name="notes" class="form-control" placeholder="Optional reference notes...">
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn-bms-primary py-2 px-4 flex-grow-1 justify-content-center">
+                                <i class="fas fa-check-circle me-1"></i> Save Payment Receipt
+                            </button>
+                            <a href="{% url 'billing:dues_summary' %}" class="btn-bms-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parties with Dues Sidebar -->
+        <div class="col-12 col-lg-5">
+            <div class="bms-card">
+                <div class="bms-card-header">
+                    <h5 class="bms-card-title"><i class="fas fa-user-clock text-warning me-2"></i>Parties with Outstanding Dues</h5>
+                </div>
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+                    <table class="table bms-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Party Name</th>
+                                <th class="text-end">Due Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in customers_with_balance %}
+                            <tr>
+                                <td class="fw-semibold text-dark">{{ c.name }}</td>
+                                <td class="text-end fw-bold text-danger">₹{{ c.outstanding_balance|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center py-4 text-muted">
+                                    No pending customer dues.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

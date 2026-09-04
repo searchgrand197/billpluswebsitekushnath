@@ -1,0 +1,99 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Sales Invoices - BMS Pro{% endblock %}
+{% block page_title %}Sales Invoices{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Controls -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <a href="?status=" class="btn-bms-secondary py-1 px-3 text-xs {% if not request.GET.status %}active{% endif %}">All Invoices</a>
+                <a href="?status=paid" class="btn-bms-secondary py-1 px-3 text-xs {% if request.GET.status == 'paid' %}active{% endif %}">Paid</a>
+                <a href="?status=pending" class="btn-bms-secondary py-1 px-3 text-xs {% if request.GET.status == 'pending' %}active{% endif %}">Pending</a>
+                <a href="?status=overdue" class="btn-bms-secondary py-1 px-3 text-xs {% if request.GET.status == 'overdue' %}active{% endif %}">Overdue</a>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'billing:create_invoice' %}" class="btn-bms-primary">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Create Invoice</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="bms-table-container">
+        <div class="table-responsive">
+            <table class="table bms-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Customer</th>
+                        <th>Invoice Date</th>
+                        <th>Due Date</th>
+                        <th class="text-end">Total Amount</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                    <tr>
+                        <td class="fw-bold text-dark">
+                            <a href="{% url 'billing:view_invoice' invoice.id %}" class="text-dark hover-green">#{{ invoice.invoice_number }}</a>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ invoice.customer_name }}</div>
+                            {% if invoice.customer_phone %}
+                            <small class="text-muted"><i class="fas fa-phone text-xs me-1"></i>{{ invoice.customer_phone }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ invoice.invoice_date|date:"d M Y" }}</td>
+                        <td>{{ invoice.due_date|date:"d M Y" }}</td>
+                        <td class="text-end fw-bold text-dark">₹{{ invoice.total_amount|floatformat:2 }}</td>
+                        <td class="text-center">
+                            {% if invoice.status == 'paid' %}
+                            <span class="bms-badge badge-paid"><i class="fas fa-check-circle text-xs"></i> Paid</span>
+                            {% elif invoice.status == 'pending' %}
+                            <span class="bms-badge badge-pending"><i class="fas fa-clock text-xs"></i> Pending</span>
+                            {% elif invoice.status == 'overdue' %}
+                            <span class="bms-badge badge-overdue"><i class="fas fa-exclamation-circle text-xs"></i> Overdue</span>
+                            {% else %}
+                            <span class="bms-badge badge-draft"><i class="fas fa-edit text-xs"></i> Draft</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{% url 'billing:generate_invoice_pdf' invoice.id %}" target="_blank" class="btn-bms-light py-1 px-2 text-xs" title="Download PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                <a href="{% url 'billing:print_thermal_invoice' invoice.id %}" target="_blank" class="btn-bms-secondary py-1 px-2 text-xs" title="Print Thermal">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                                <a href="{% url 'billing:edit_invoice' invoice.id %}" class="btn-bms-secondary py-1 px-2 text-xs" title="Edit">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-file-invoice-dollar fa-3x text-muted mb-3 d-block"></i>
+                            <h5 class="fw-bold text-dark">No Invoices Found</h5>
+                            <p class="text-secondary">Start creating billing transactions for your customers.</p>
+                            <a href="{% url 'billing:create_invoice' %}" class="btn-bms-primary mt-2">
+                                <i class="fas fa-plus"></i> Create New Invoice
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

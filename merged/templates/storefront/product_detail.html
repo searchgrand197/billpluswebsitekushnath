@@ -1,0 +1,151 @@
+{% extends "storefront/base.html" %}
+{% block title %}{{ product.name }} — Kushnath Ayurveda{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8 md:py-12 reveal has-mobile-bar lg:pb-0">
+  <nav class="text-xs sm:text-sm text-gray-400 mb-6 sm:mb-8 flex flex-wrap items-center gap-1.5 sm:gap-2">
+    <a href="/" class="hover:text-brand-700">Home</a><span>/</span>
+    <a href="/?category={{ product.category_id }}#our-products" class="hover:text-brand-700 truncate max-w-[120px] sm:max-w-none">{{ product.category }}</a><span>/</span>
+    <span class="text-brand-900 font-medium truncate">{{ product.name }}</span>
+  </nav>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-16">
+    <!-- Gallery -->
+    <div>
+      <div class="relative bg-earth-50 rounded-2xl sm:rounded-3xl overflow-hidden shadow-soft border border-earth-100 aspect-square flex items-center justify-center p-4 sm:p-6">
+        <img src="{{ product.image }}" alt="{{ product.name }}" id="main-image" class="max-h-full max-w-full object-contain transition duration-300">
+        {% if product.all_images|length > 1 %}
+        <button type="button" onclick="shiftGallery(-1)" class="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 border border-earth-100 shadow flex items-center justify-center text-brand-800 hover:bg-white" aria-label="Previous image"><i class="fas fa-chevron-left text-sm"></i></button>
+        <button type="button" onclick="shiftGallery(1)" class="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 border border-earth-100 shadow flex items-center justify-center text-brand-800 hover:bg-white" aria-label="Next image"><i class="fas fa-chevron-right text-sm"></i></button>
+        {% endif %}
+      </div>
+      {% if product.all_images|length > 1 %}
+      <div class="flex gap-2 sm:gap-3 mt-3 sm:mt-4 overflow-x-auto scrollbar-hide pb-1" id="gallery-thumbs">
+        {% for img in product.all_images %}
+        <button type="button" onclick="setGalleryImage({{ forloop.counter0 }})" data-thumb="{{ forloop.counter0 }}" class="gallery-thumb shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl border-2 overflow-hidden transition {% if forloop.first %}border-brand-600{% else %}border-earth-100 hover:border-brand-400{% endif %}">
+          <img src="{{ img }}" alt="" class="w-full h-full object-contain bg-earth-50">
+        </button>
+        {% endfor %}
+      </div>
+      <p class="text-xs text-gray-400 mt-2">{{ product.all_images|length }} photos — tap thumbnails or use arrows</p>
+      {% endif %}
+    </div>
+
+    <!-- Info -->
+    <div class="flex flex-col">
+      <span class="inline-flex w-fit items-center gap-2 bg-brand-50 text-brand-700 text-[10px] sm:text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3 sm:mb-4">{{ product.category }}</span>
+      <h1 class="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-brand-900 leading-tight mb-2 sm:mb-3">{{ product.name }}</h1>
+      {% if product.quantity_label %}<p class="text-sm sm:text-base text-gray-500 mb-3 sm:mb-4">{{ product.quantity_label }}</p>{% endif %}
+
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div class="flex text-amber-400 text-sm">
+          {% for i in "12345" %}<i class="fas fa-star{% if forloop.counter > product.rating %} text-gray-200{% endif %}"></i>{% endfor %}
+        </div>
+        <span class="text-xs sm:text-sm text-gray-500">{{ product.rating }} rating</span>
+        <span class="text-gray-300 hidden sm:inline">|</span>
+        {% if product.available %}
+        <span class="text-brand-700 text-xs sm:text-sm font-semibold"><i class="fas fa-circle-check mr-1"></i>In Stock</span>
+        {% else %}
+        <span class="text-red-500 text-xs sm:text-sm font-semibold">Out of Stock</span>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-wrap items-baseline gap-3 sm:gap-4 mb-5 sm:mb-6 pb-5 sm:pb-6 border-b border-earth-100">
+        <span class="text-3xl sm:text-4xl font-bold text-brand-900">₹{{ product.sale_price|floatformat:0 }}</span>
+        {% if product.has_discount %}
+        <span class="text-lg sm:text-xl text-gray-400 line-through">₹{{ product.price|floatformat:0 }}</span>
+        <span class="bg-red-100 text-red-600 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1 rounded-full">
+          {% if product.discount_type == 'percent' %}{{ product.discount|floatformat:0 }}% OFF{% else %}₹{{ product.discount|floatformat:0 }} OFF{% endif %}
+        </span>
+        {% endif %}
+      </div>
+
+      {% if product.available %}
+      <div class="hidden lg:flex gap-3 mb-6 sm:mb-8">
+        <button id="add-btn" class="flex-1 py-3.5 sm:py-4 bg-brand-700 text-white font-bold rounded-xl sm:rounded-2xl hover:bg-brand-800 transition text-base sm:text-lg flex items-center justify-center gap-2 shadow-soft min-h-[48px]">
+          <i class="fas fa-bag-shopping"></i> Add to Cart
+        </button>
+        <button id="buy-btn" class="px-6 sm:px-8 py-3.5 sm:py-4 bg-gold-500 text-brand-900 font-bold rounded-xl sm:rounded-2xl hover:bg-gold-400 transition text-base sm:text-lg min-h-[48px]">Buy Now</button>
+      </div>
+      {% endif %}
+
+      <div class="grid grid-cols-3 gap-2 sm:gap-3 mb-6 sm:mb-8">
+        <div class="text-center p-2.5 sm:p-3 bg-earth-50 rounded-lg sm:rounded-xl"><i class="fas fa-leaf text-brand-600 mb-1 text-sm sm:text-base"></i><p class="text-[10px] sm:text-xs text-gray-600">100% Natural</p></div>
+        <div class="text-center p-2.5 sm:p-3 bg-earth-50 rounded-lg sm:rounded-xl"><i class="fas fa-truck text-brand-600 mb-1 text-sm sm:text-base"></i><p class="text-[10px] sm:text-xs text-gray-600">Fast Delivery</p></div>
+        <div class="text-center p-2.5 sm:p-3 bg-earth-50 rounded-lg sm:rounded-xl"><i class="fas fa-undo text-brand-600 mb-1 text-sm sm:text-base"></i><p class="text-[10px] sm:text-xs text-gray-600">Easy Returns</p></div>
+      </div>
+
+      {% if product.benefits %}
+      <div class="mb-5 sm:mb-6">
+        <h3 class="font-semibold text-brand-900 mb-2 sm:mb-3 text-sm sm:text-base">Key Benefits</h3>
+        <div class="flex flex-wrap gap-2">
+          {% for b in product.benefits %}
+          <span class="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-brand-50 text-brand-800 text-xs sm:text-sm rounded-full border border-brand-100">{{ b }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div>
+        <h3 class="font-semibold text-brand-900 mb-2 sm:mb-3 text-sm sm:text-base">About This Product</h3>
+        <p class="text-sm sm:text-base text-gray-600 leading-relaxed">{{ product.description|linebreaksbr }}</p>
+      </div>
+    </div>
+  </div>
+
+  {% if related_products %}
+  <section class="mt-12 sm:mt-16 pt-8 sm:pt-12 border-t border-earth-100">
+    <h2 class="font-display text-2xl sm:text-3xl font-bold text-brand-900 mb-6 sm:mb-8">You May Also Like</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+      {% for p in related_products %}
+        {% include "storefront/partials/product_card.html" with p=p %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+{% if product.available %}
+<!-- Mobile sticky buy bar -->
+<div class="mobile-action-bar lg:hidden">
+  <div class="max-w-7xl mx-auto flex items-center gap-3">
+    <div class="min-w-0 flex-1">
+      <p class="text-xs text-gray-500 truncate">{{ product.name }}</p>
+      <p class="text-lg font-bold text-brand-900">₹{{ product.sale_price|floatformat:0 }}</p>
+    </div>
+    <button id="add-btn-mobile" class="px-4 py-3 bg-white border-2 border-brand-700 text-brand-800 font-bold rounded-xl text-sm min-h-[44px] min-w-[44px]">
+      <i class="fas fa-bag-shopping"></i>
+    </button>
+    <button id="buy-btn-mobile" class="flex-1 max-w-[160px] py-3 bg-brand-700 text-white font-bold rounded-xl text-sm min-h-[44px]">Buy Now</button>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  PRODUCT_CATALOG = {{ products_json|safe }};
+  const pid = {{ product.id }};
+  const galleryImages = [
+    {% for img in product.all_images %}"{{ img }}"{% if not forloop.last %},{% endif %}{% endfor %}
+  ];
+  let galleryIndex = 0;
+
+  function setGalleryImage(i) {
+    if (!galleryImages.length) return;
+    galleryIndex = ((i % galleryImages.length) + galleryImages.length) % galleryImages.length;
+    const main = document.getElementById('main-image');
+    if (main) main.src = galleryImages[galleryIndex];
+    document.querySelectorAll('.gallery-thumb').forEach((btn, idx) => {
+      btn.classList.toggle('border-brand-600', idx === galleryIndex);
+      btn.classList.toggle('border-earth-100', idx !== galleryIndex);
+    });
+  }
+  function shiftGallery(delta) { setGalleryImage(galleryIndex + delta); }
+
+  document.getElementById('add-btn')?.addEventListener('click', () => addToCart(pid));
+  document.getElementById('buy-btn')?.addEventListener('click', () => { addToCart(pid); window.location.href='/checkout/'; });
+  document.getElementById('add-btn-mobile')?.addEventListener('click', () => addToCart(pid));
+  document.getElementById('buy-btn-mobile')?.addEventListener('click', () => { addToCart(pid); window.location.href='/checkout/'; });
+</script>
+{% endblock %}

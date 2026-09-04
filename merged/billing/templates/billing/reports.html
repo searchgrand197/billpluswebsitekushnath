@@ -1,0 +1,155 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Reports & Analytics - BMS Pro{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Action Header -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">Business Performance Reports</h4>
+                <p class="text-secondary mb-0">Generate, analyze, and export sales, customer, and inventory metrics.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'billing:reports_export' %}" class="btn-bms-primary">
+                    <i class="fas fa-download"></i>
+                    <span>Export CSV Report</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-header">
+            <h5 class="bms-card-title"><i class="fas fa-filter text-muted me-2"></i>Report Filters</h5>
+        </div>
+        <div class="bms-card-body">
+            <form id="reportFiltersForm" method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Report Category</label>
+                    <select class="form-select" name="report_type">
+                        <option value="sales" {% if request.GET.report_type == 'sales' or not request.GET.report_type %}selected{% endif %}>Sales & Invoices Report</option>
+                        <option value="inventory" {% if request.GET.report_type == 'inventory' %}selected{% endif %}>Inventory Stock Valuation</option>
+                        <option value="customers" {% if request.GET.report_type == 'customers' %}selected{% endif %}>Customer Purchase Activity</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Timeframe</label>
+                    <select class="form-select" name="date_range">
+                        <option value="today">Today</option>
+                        <option value="this_month" selected>This Month</option>
+                        <option value="this_year">This Year</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn-bms-primary w-100 justify-content-center">
+                        <i class="fas fa-search me-1"></i> Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Report KPI Stat Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Revenue</span>
+                    <div class="stat-value text-success">₹{{ total_sales|default:"0.00" }}</div>
+                    <small class="text-muted"><i class="fas fa-rupee-sign text-success me-1"></i> Gross Collections</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Invoices</span>
+                    <div class="stat-value text-dark">{{ total_orders|default:"0" }}</div>
+                    <small class="text-muted"><i class="fas fa-file-invoice text-success me-1"></i> Total Orders</small>
+                </div>
+                <div class="stat-icon" style="background: #E0F2FE; color: #0284C7;">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Products Sold</span>
+                    <div class="stat-value text-dark">{{ total_products_sold|default:"0" }}</div>
+                    <small class="text-muted"><i class="fas fa-cubes text-success me-1"></i> Units Delivered</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-shopping-bag"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Active Customers</span>
+                    <div class="stat-value text-dark">{{ total_customers|default:"0" }}</div>
+                    <small class="text-muted"><i class="fas fa-users text-success me-1"></i> Repeat Buyers</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-user-check"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Summary Table -->
+    <div class="bms-table-container">
+        <div class="bms-card-header">
+            <h5 class="bms-card-title"><i class="fas fa-table me-2 text-muted"></i>Recent Transaction Summary</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table bms-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Invoice #</th>
+                        <th>Customer</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                    <tr>
+                        <td>{{ inv.invoice_date|date:"d M Y" }}</td>
+                        <td class="fw-bold text-dark">#{{ inv.invoice_number }}</td>
+                        <td>{{ inv.customer_name }}</td>
+                        <td class="text-end fw-bold text-success">₹{{ inv.total_amount|floatformat:2 }}</td>
+                        <td class="text-center">
+                            {% if inv.status == 'paid' %}
+                            <span class="bms-badge badge-paid">Paid</span>
+                            {% else %}
+                            <span class="bms-badge badge-pending">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            No report data recorded for the selected range.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

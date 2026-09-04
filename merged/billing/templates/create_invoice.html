@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Invoice - Billvice{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Messages -->
+    {% if messages %}
+    <div class="messages mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Invoice Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Create New Invoice</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="invoiceForm" action="{% url 'billing:create_invoice' %}">
+                        {% csrf_token %}
+                        
+                        <!-- Customer Information -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Customer Name</label>
+                                    {{ form.customer_name }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">GSTIN (Optional)</label>
+                                    {{ form.customer_gstin }}
+                                    <small class="text-muted d-block">Enter GSTIN for intra-state transactions</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Customer Address</label>
+                            {{ form.customer_address }}
+                        </div>
+
+                        <!-- Products Section -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Products</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="addProduct">
+                                    <i class="fas fa-plus me-1"></i>Add Product
+                                </button>
+                            </div>
+                            <div id="productsContainer">
+                                <div class="product-row row mb-3">
+                                    <div class="col-md-6">
+                                        <select class="form-select product-select" name="product[]" required>
+                                            <option value="">Select Product</option>
+                                            {% for product in products %}
+                                            <option value="{{ product.id }}" data-price="{{ product.price }}" data-stock="{{ product.stock }}">
+                                                {{ product.name }} ({{ product.sku }}) - Rs{{ product.price }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" class="form-control quantity-input" name="quantity[]" 
+                                               placeholder="Quantity" min="1" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger remove-product" style="display: none;">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Invoice Date</label>
+                                    {{ form.invoice_date }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Due Date</label>
+                                    {{ form.due_date }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Notes</label>
+                            {{ form.notes }}
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">Create Invoice</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Invoice Summary -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0">Invoice Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">Rs0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>CGST ({{ half_gst_rate|default:'9.00' }}%):</span>
+                        <span id="cgst">Rs0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>SGST ({{ half_gst_rate|default:'9.00' }}%):</span>
+                        <span id="sgst">Rs0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>IGST ({{ gst_percentage|default:'18.00' }}%):</span>
+                        <span id="igst">Rs0.00</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>Total:</strong>
+                        <strong id="total" class="text-primary">Rs0.00</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productsContainer = document.getElementById('productsContainer');
+    const addProductBtn = document.getElementById('addProduct');
+    const invoiceForm = document.getElementById('invoiceForm');
+    const customerGstin = document.getElementById('id_customer_gstin');
+    const availableProducts = {{ products|safe }};
+    
+    // Get GST rates from settings
+    const gstRate = parseFloat('{{ gst_percentage|default:"18.00" }}');
+    const halfGstRate = parseFloat('{{ half_gst_rate|default:"9.00" }}');
+
+    // Add new product row
+    addProductBtn.addEventListener('click', function() {
+        const productRow = document.querySelector('.product-row').cloneNode(true);
+        productRow.querySelector('.product-select').value = '';
+        productRow.querySelector('.quantity-input').value = '';
+        productRow.querySelector('.remove-product').style.display = 'block';
+        productsContainer.appendChild(productRow);
+    });
+
+    // Remove product row
+    productsContainer.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-product')) {
+            const rows = document.querySelectorAll('.product-row');
+            if (rows.length > 1) {
+                e.target.closest('.product-row').remove();
+                calculateTotals();
+            } else {
+                alert('At least one product is required.');
+            }
+        }
+    });
+
+    // Calculate totals when products or quantities change
+    productsContainer.addEventListener('change', calculateTotals);
+    customerGstin.addEventListener('change', calculateTotals);
+
+    function calculateTotals() {
+        let subtotal = 0;
+        const productRows = document.querySelectorAll('.product-row');
+
+        productRows.forEach(row => {
+            const productId = row.querySelector('.product-select').value;
+            const quantity = row.querySelector('.quantity-input').value;
+            if (productId && quantity) {
+                const product = availableProducts.find(p => p.id === parseInt(productId));
+                if (product) {
+                    subtotal += product.price * parseInt(quantity);
+                }
+            }
+        });
+
+        const hasGstin = customerGstin.value.trim() !== '';
+        const cgst = hasGstin ? subtotal * (halfGstRate / 100) : 0;
+        const sgst = hasGstin ? subtotal * (halfGstRate / 100) : 0;
+        const igst = !hasGstin ? subtotal * (gstRate / 100) : 0;
+        const total = subtotal + cgst + sgst + igst;
+
+        document.getElementById('subtotal').textContent = `Rs${subtotal.toFixed(2)}`;
+        document.getElementById('cgst').textContent = `Rs${cgst.toFixed(2)}`;
+        document.getElementById('sgst').textContent = `Rs${sgst.toFixed(2)}`;
+        document.getElementById('igst').textContent = `Rs${igst.toFixed(2)}`;
+        document.getElementById('total').textContent = `Rs${total.toFixed(2)}`;
+    }
+
+    // Form validation
+    invoiceForm.addEventListener('submit', function(e) {
+        const productRows = document.querySelectorAll('.product-row');
+        let hasProducts = false;
+
+        productRows.forEach(row => {
+            const select = row.querySelector('.product-select');
+            const quantity = row.querySelector('.quantity-input');
+            if (select.value && quantity.value) {
+                hasProducts = true;
+            }
+        });
+
+        if (!hasProducts) {
+            e.preventDefault();
+            alert('Please add at least one product to the invoice.');
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

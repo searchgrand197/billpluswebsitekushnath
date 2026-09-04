@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Balance Sheet - Billvice{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in balance-sheet-page">
+    <div class="balance-sheet-screen">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Balance Sheet (Summary)</h2>
+            <p class="text-secondary mb-0">Sales, purchases, and inventory valuation</p>
+        </div>
+        <div class="d-flex gap-2 no-print">
+            <a class="btn btn-outline-primary" href="{% url 'billing:reports' %}">
+                <i class="fas fa-arrow-left me-2"></i>Back to Reports
+            </a>
+            <button class="btn btn-outline-primary" type="button" id="btnPrintBalanceSheet" aria-label="Print balance sheet">
+                <i class="fas fa-print me-2"></i>Print
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                            <i class="fas fa-receipt text-success"></i>
+                        </div>
+                        <span class="badge bg-success bg-opacity-10 text-success">Revenue</span>
+                    </div>
+                    <h3 class="mb-1">Rs{{ total_sales|floatformat:2 }}</h3>
+                    <p class="text-secondary mb-0">Total Sales</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                            <i class="fas fa-shopping-cart text-primary"></i>
+                        </div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary">Expense</span>
+                    </div>
+                    <h3 class="mb-1">Rs{{ total_purchases|floatformat:2 }}</h3>
+                    <p class="text-secondary mb-0">Total Purchases (Received)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                            <i class="fas fa-warehouse text-warning"></i>
+                        </div>
+                        <span class="badge bg-warning bg-opacity-10 text-warning">Asset</span>
+                    </div>
+                    <h3 class="mb-1">Rs{{ inventory_value|floatformat:2 }}</h3>
+                    <p class="text-secondary mb-0">Inventory Value (Cost Price)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Gross Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Sales</span>
+                        <strong>Rs{{ total_sales|floatformat:2 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Purchases</span>
+                        <strong>Rs{{ total_purchases|floatformat:2 }}</strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span>Sales - Purchases</span>
+                        <strong>Rs{{ gross_margin|floatformat:2 }}</strong>
+                    </div>
+                    <small class="text-secondary d-block mt-2">
+                        Note: This is a simple summary. Purchases are tracked via received Purchase Orders.
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Next Steps (Optional)</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0 text-secondary">
+                        <li>Add supplier ledger / payments</li>
+                        <li>Date range filters (month/year/custom)</li>
+                        <li>Separate P&amp;L vs Balance Sheet</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div> <!-- end rows -->
+    </div> <!-- end balance-sheet-screen -->
+
+    <!-- Print-friendly balance sheet layout -->
+    <div class="balance-sheet-print d-none">
+        <div class="mb-3 text-center">
+            <h1 class="h4 mb-1">Balance Sheet (Summary)</h1>
+            <p class="text-secondary mb-0">Sales, purchases, inventory value and gross margin</p>
+        </div>
+        <table class="table table-bordered w-100">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 35%;">Particulars</th>
+                    <th style="width: 25%;" class="text-end">Amount (Rs)</th>
+                    <th style="width: 40%;">Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Total Sales</td>
+                    <td class="text-end">{{ total_sales|floatformat:2 }}</td>
+                    <td class="notes-cell">Finalized invoices only (paid / credit / partially paid). Draft and cancelled bills are excluded.</td>
+                </tr>
+                <tr>
+                    <td>Total Purchases</td>
+                    <td class="text-end">{{ total_purchases|floatformat:2 }}</td>
+                    <td class="notes-cell">Purchase Orders with status <strong>Received</strong>.</td>
+                </tr>
+                <tr>
+                    <td>Inventory Value (at Cost)</td>
+                    <td class="text-end">{{ inventory_value|floatformat:2 }}</td>
+                    <td class="notes-cell">Cost price × stock quantity for all products (items without stock are treated as 0).</td>
+                </tr>
+                <tr>
+                    <td><strong>Gross Margin (Sales − Purchases)</strong></td>
+                    <td class="text-end"><strong>{{ gross_margin|floatformat:2 }}</strong></td>
+                    <td class="notes-cell">Approximate profit before overheads, salaries, taxes, and other expenses.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p class="text-secondary small mt-2">
+            Note: This is a simple summary for quick review. Detailed profit &amp; loss and supplier ledgers can be added later.
+        </p>
+    </div>
+</div>
+
+<style>
+    /* Print: show balance sheet in a clean table layout */
+    @media print {
+        /* Base template hides .fade-in; ensure this page still renders */
+        .balance-sheet-page,
+        .fade-in.balance-sheet-page {
+            display: block !important;
+            visibility: visible !important;
+        }
+
+        /* Hide on-screen controls and card layout */
+        .no-print,
+        .balance-sheet-screen {
+            display: none !important;
+        }
+
+        /* Show print table */
+        .balance-sheet-print {
+            display: block !important;
+            width: 100% !important;
+            font-size: 11px;
+        }
+
+        .balance-sheet-print .table th,
+        .balance-sheet-print .table td {
+            border: 1px solid #000 !important;
+            color: #000 !important;
+            padding: 6px 8px !important;
+            vertical-align: top;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+
+        .balance-sheet-print .table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+        }
+
+        .balance-sheet-print .notes-cell {
+            width: 45%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('btnPrintBalanceSheet');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            window.print();
+        });
+    }
+});
+</script>
+{% endblock %}
+

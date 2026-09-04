@@ -1,0 +1,152 @@
+{% extends 'billing/base.html' %}
+
+{% block title %}Customers & Parties - BMS Pro{% endblock %}
+{% block page_title %}Customers & Parties{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <!-- Header Controls -->
+    <div class="bms-card mb-4">
+        <div class="bms-card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <h4 class="fw-bold text-dark mb-1">Customer Management</h4>
+                <p class="text-secondary mb-0">Directory of customer records, contact info, and transaction history.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'billing:create_invoice' %}" class="btn-bms-primary">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>New Invoice</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-md-4">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Customers</span>
+                    <div class="stat-value">{{ customers|length }}</div>
+                    <small class="text-muted"><i class="fas fa-users text-success me-1"></i> Registered Parties</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-user-friends"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-4">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Invoices Issued</span>
+                    <div class="stat-value text-dark">{{ total_rentals|default:0 }}</div>
+                    <small class="text-muted"><i class="fas fa-file-invoice text-success me-1"></i> Sales Transactions</small>
+                </div>
+                <div class="stat-icon" style="background: #E0F2FE; color: #0284C7;">
+                    <i class="fas fa-file-signature"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-4">
+            <div class="stat-card">
+                <div>
+                    <span class="stat-label">Total Customer Revenue</span>
+                    <div class="stat-value text-success">₹{{ total_revenue|floatformat:2 }}</div>
+                    <small class="text-muted"><i class="fas fa-wallet text-success me-1"></i> Gross Collections</small>
+                </div>
+                <div class="stat-icon">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customers Table -->
+    <div class="bms-table-container">
+        <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center">
+            <div class="header-search" style="width: 300px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="customerSearchInput" placeholder="Filter customer name or phone..." autocomplete="off">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table bms-table align-middle" id="customersTable">
+                <thead>
+                    <tr>
+                        <th>Customer / Party Name</th>
+                        <th>Phone Number</th>
+                        <th>GSTIN</th>
+                        <th class="text-center">Total Invoices</th>
+                        <th class="text-end">Total Spent</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td class="fw-bold text-dark">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-light p-2 text-success">
+                                    <i class="fas fa-user-circle fa-lg"></i>
+                                </div>
+                                <div>
+                                    <div>{{ customer.name }}</div>
+                                    <small class="text-muted">{{ customer.email|default:"No email registered" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if customer.phone %}
+                            <span class="fw-semibold"><i class="fas fa-phone text-xs text-muted me-1"></i>{{ customer.phone }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ customer.gstin|default:"-" }}</td>
+                        <td class="text-center fw-bold">{{ customer.total_rentals|default:0 }}</td>
+                        <td class="text-end fw-bold text-success">₹{{ customer.total_spent|floatformat:2 }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'billing:customer_ledger' customer.id %}" class="btn-bms-light py-1 px-3 text-xs" title="View Ledger">
+                                <i class="fas fa-book me-1"></i> Ledger
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fas fa-user-slash fa-3x mb-3 d-block text-muted"></i>
+                            <h5 class="fw-bold text-dark">No Customers Registered</h5>
+                            <p class="text-secondary">Customers will be automatically recorded when creating invoices.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('customerSearchInput');
+        const table = document.getElementById('customersTable');
+        
+        if (searchInput && table) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                const rows = table.querySelectorAll('tbody tr');
+
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(query) ? '' : 'none';
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

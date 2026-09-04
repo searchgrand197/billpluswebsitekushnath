@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token {{ invoice.token_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; background: #fff; padding: 24px; }
+        .token-slip {
+            border: 2px solid #000;
+            padding: 12px 24px;
+            text-align: center;
+            display: inline-block;
+        }
+        .token-slip .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+        .token-slip .number { font-size: 28px; font-weight: 800; line-height: 1.2; }
+        @media print {
+            body { padding: 0; min-height: 0; }
+            .no-print { display: none !important; }
+            .token-slip { padding: 8px 20px; border-width: 2px; }
+            .token-slip .label { font-size: 9px; margin-bottom: 2px; }
+            .token-slip .number { font-size: 24px; }
+            @page { size: auto; margin: 8mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="position:fixed;top:12px;right:12px;">
+        <button type="button" onclick="window.print()" style="padding:8px 16px;cursor:pointer;">Print</button>
+    </div>
+    <div class="token-slip">
+        <div class="label">Order Token</div>
+        <div class="number">{{ invoice.token_number }}</div>
+    </div>
+    {% if auto_print %}
+    <script>window.onload = function() { window.print(); };</script>
+    {% endif %}
+</body>
+</html>
