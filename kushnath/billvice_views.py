@@ -6,9 +6,18 @@ from django.http import FileResponse, Http404
 from django.shortcuts import render
 
 
+def _billvice_dist_dir():
+    return (Path(settings.BASE_DIR) / "frontend" / "dist").resolve()
+
+
 def serve_billvice(request, path=""):
     """Serve Billvice React SPA from frontend/dist (assets + index.html fallback)."""
-    build_dir = (Path(settings.BASE_DIR) / "frontend" / "dist").resolve()
+    build_dir = _billvice_dist_dir()
+    index_file = build_dir / "index.html"
+    if not index_file.is_file():
+        raise Http404(
+            "Billvice frontend build missing. Run: cd frontend && npm install && npm run build"
+        )
     if path:
         file_path = (build_dir / path).resolve()
         if build_dir not in file_path.parents and file_path != build_dir:
