@@ -1,4 +1,4 @@
-# Merged requirements: Kushnath Live + Billvice
+# Merged requirements: Kushnath Live + Billvice m
 
 # Django & server
 Django>=4.2.27,<6
