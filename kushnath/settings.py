@@ -13,7 +13,8 @@ SECRET_KEY = os.environ.get(
     "django-insecure-merged-kushnath-change-me-in-production",
 )
 
-DEBUG = True
+# Production: export DJANGO_DEBUG=false
+DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes")
 
 ALLOWED_HOSTS = [
     "localhost",
@@ -25,6 +26,10 @@ ALLOWED_HOSTS = [
     "www.kushnathayurveda.com",
     "kushnathayurveda.com",
 ]
+# Extra hosts: DJANGO_ALLOWED_HOSTS=example.com,www.example.com
+_extra_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+if _extra_hosts.strip():
+    ALLOWED_HOSTS.extend(h.strip() for h in _extra_hosts.split(",") if h.strip())
 if DEBUG:
     ALLOWED_HOSTS = ["*"]
 
@@ -48,6 +53,13 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.kushnathayurveda.com",
     "https://kushnathayurveda.com",
 ]
+_extra_csrf = os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "")
+if _extra_csrf.strip():
+    CSRF_TRUSTED_ORIGINS.extend(o.strip() for o in _extra_csrf.split(",") if o.strip())
+
+# Trust nginx/Apache HTTPS headers (required for session cookies behind proxy)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 INSTALLED_APPS = [
     "daphne",
@@ -120,7 +132,11 @@ CHANNEL_LAYERS = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        # Keep this file OUTSIDE the zip you re-upload, or set DJANGO_DB_PATH.
+        # Overwriting db.sqlite3 on deploy deletes all Billvice data.
+        "NAME": Path(
+            os.environ.get("DJANGO_DB_PATH", str(BASE_DIR / "db.sqlite3"))
+        ),
     }
 }
 
@@ -203,10 +219,20 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
-CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14  # 14 days
+SESSION_SAVE_EVERY_REQUEST = True  # keep session alive while using the app
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# Behind HTTPS nginx, secure cookies when DEBUG is off
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_NAME = "csrftoken"
+SESSION_COOKIE_NAME = "sessionid"
+SESSION_COOKIE_PATH = "/"
+CSRF_COOKIE_PATH = "/"
 
 LOGIN_REDIRECT_URL = "/billvice/"
 LOGIN_URL = "login"

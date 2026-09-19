@@ -29,8 +29,13 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // Used when an API returns 401 — do not call logout endpoint (session already dead)
+  const clearSession = useCallback(() => {
+    setUser(null);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, ready: user !== undefined }}>
+    <AuthContext.Provider value={{ user, login, logout, clearSession, ready: user !== undefined }}>
       {children}
     </AuthContext.Provider>
   );

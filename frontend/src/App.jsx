@@ -26,13 +26,14 @@ import RawMaterials from './pages/RawMaterials';
 import Manufacturing from './pages/Manufacturing';
 
 function ProtectedLayout() {
-  const { user, ready, logout } = useAuth();
+  const { user, ready, clearSession } = useAuth();
   const location = useLocation();
 
   React.useEffect(() => {
-    setUnauthorizedHandler(() => logout());
+    // Soft clear only — hard logout API on a dead session caused blank/flicker on production
+    setUnauthorizedHandler(() => clearSession());
     return () => setUnauthorizedHandler(null);
-  }, [logout]);
+  }, [clearSession]);
 
   if (!ready) {
     return (

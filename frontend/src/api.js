@@ -33,7 +33,9 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     const url = String(err.config?.url || '');
-    if (err.response?.status === 401 && !url.includes('auth/')) {
+    const status = err.response?.status;
+    // Only kick to login on real auth loss — ignore network blips (no response)
+    if (status === 401 && !url.includes('auth/')) {
       onUnauthorized?.();
     }
     return Promise.reject(err);
