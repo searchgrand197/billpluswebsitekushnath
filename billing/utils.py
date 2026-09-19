@@ -11,13 +11,33 @@ from decimal import Decimal
 from io import BytesIO
 from django.conf import settings
 from .models import CompanySettings
+import base64
 import os
+from pathlib import Path
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 
 try:
     from num2words import num2words
 except ImportError:
     num2words = None
+
+
+def company_logo_data_uri():
+    """
+    Logo as a data URI so print/PDF pages work without /static/ on production.
+    Tries billing static, then frontend dist/public.
+    """
+    base = Path(settings.BASE_DIR)
+    candidates = [
+        base / "billing" / "static" / "img" / "logo.png",
+        base / "frontend" / "dist" / "logo.png",
+        base / "frontend" / "public" / "logo.png",
+    ]
+    for path in candidates:
+        if path.is_file():
+            encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+            return f"data:image/png;base64,{encoded}"
+    return ""
 
 class NumberedCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):

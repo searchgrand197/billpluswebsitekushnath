@@ -324,7 +324,7 @@
             <table class="gst-head-table">
                 <tr>
                     <td>
-                        <img src="{% static 'img/logo.png' %}" class="gst-slip-logo" alt="{{ company_settings.company_name }}" />
+                        <img src="{{ logo_url|default:'/billvice/logo.png' }}" class="gst-slip-logo" alt="{{ company_settings.company_name }}" />
                         <div class="gst-co">{{ company_settings.company_name }}</div>
                         <p>{{ company_settings.address_line1 }}{% if company_settings.address_line2 %}, {{ company_settings.address_line2 }}{% endif %}</p>
                         <p>{{ company_settings.city }}, {{ company_settings.state }} {{ company_settings.postal_code }}</p>

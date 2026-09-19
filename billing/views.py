@@ -53,7 +53,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.db import transaction
-from .utils import create_invoice_pdf
+from .utils import create_invoice_pdf, company_logo_data_uri
 from .print_utils import get_wkhtmltopdf_config, get_pdf_options
 from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
@@ -1915,7 +1915,10 @@ def purchase_order_detail(request, pk):
 def purchase_order_print(request, pk):
     """Print-friendly view for a single purchase order."""
     po = get_object_or_404(PurchaseOrder.objects.prefetch_related('items__product'), pk=pk)
-    return render(request, 'purchase_order_print.html', {'po': po})
+    return render(request, 'purchase_order_print.html', {
+        'po': po,
+        'logo_url': company_logo_data_uri(),
+    })
 
 
 @login_required
@@ -3142,6 +3145,7 @@ def invoice_print(request, pk):
         'printer_name': getattr(company_settings, 'printer_name', '') or None,
         'display_token_number': display_token_number,
         'show_token_page': show_token_page,
+        'logo_url': company_logo_data_uri(),
     }
     return render(request, 'billing/invoice_print.html', context)
 
@@ -3651,6 +3655,7 @@ def generate_invoice_pdf(request, invoice_id):
             'display_token_number': None,
             'show_token_page': False,
             'for_pdf': True,
+            'logo_url': company_logo_data_uri(),
         }
 
         pdf_bytes = None

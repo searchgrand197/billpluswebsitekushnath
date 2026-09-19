@@ -299,7 +299,7 @@
     <div class="invoice-wrapper">
         <div class="header">
             <div class="header-left">
-                <img src="{% static 'img/logo.png' %}" class="slip-logo" alt="{{ company_name }}" />
+                <img src="{{ logo_url|default:'/billvice/logo.png' }}" class="slip-logo" alt="{{ company_name }}" />
                 <div class="company-name">{{ company_name }}</div>
                 <div class="company-line">{{ company_address }}</div>
                 <div class="company-line">
