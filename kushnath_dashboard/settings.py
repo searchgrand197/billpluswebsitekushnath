@@ -42,18 +42,24 @@ if DEBUG:
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
+    "rest_framework",
+    "corsheaders",
+    # Billvice POS (required for /billing/api/ and /billvice/)
+    "billing",
+    # Kushnath Live storefront
     "dashboard",
     "coupon",
     "customer",
     "cart",
     "orders",
-    "corsheaders",
     "advertisement",
     "authentication",
 ]
@@ -69,7 +75,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "kushnath_dashboard.urls"
+ROOT_URLCONF = "kushnath.urls"  # merged Live + Billvice (was kushnath_dashboard.urls)
 
 TEMPLATES = [
     {
@@ -138,8 +144,23 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
-# React production build (vite output)
+# React production builds
 FRONTEND_BUILD_DIR = BASE_DIR / "build"
+BILLVICE_DIST_DIR = BASE_DIR / "frontend" / "dist"
+
+LOGIN_REDIRECT_URL = "/billvice/"
+LOGIN_URL = "login"
+
+# Billvice uses session cookies (not only JWT)
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
 
 # Media files (Uploads)
 MEDIA_URL = '/media/'
@@ -149,12 +170,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-}
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=5),

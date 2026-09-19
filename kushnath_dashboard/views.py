@@ -2,7 +2,7 @@ import mimetypes
 from pathlib import Path
 
 from django.conf import settings
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import redirect
 
 
@@ -17,13 +17,25 @@ def _resolve_build_path(relative_path=""):
 
 
 def serve_frontend(request, path=""):
-    """Serve legacy Live React assets from build/; never steal /billvice/."""
-    # Safety: /billvice must never hit this catch-all (would redirect to storefront home)
+    """Serve legacy Live React assets from build/; never steal Billvice routes."""
+    path = (path or "").lstrip("/")
+
+    # /billvice/* → Billvice SPA
     if path == "billvice" or path.startswith("billvice/"):
         from kushnath.billvice_views import serve_billvice
 
         sub = "" if path == "billvice" else path[len("billvice/") :]
         return serve_billvice(request, path=sub)
+
+    # /billing/* must never redirect to storefront home (that blanks the POS)
+    if path == "billing" or path.startswith("billing/") or path.startswith("accounts/"):
+        return HttpResponse(
+            "Billing routes are not mounted in this URL config.\n"
+            "Use kushnath.urls (or update kushnath_dashboard.urls to include billing.urls).\n"
+            f"Request path: /{path}\n",
+            status=503,
+            content_type="text/plain; charset=utf-8",
+        )
 
     if path:
         file_path = _resolve_build_path(path)
