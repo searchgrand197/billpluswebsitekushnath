@@ -52,6 +52,22 @@ function emptyPosRow(id = 1, defaultGst = 0) {
   };
 }
 
+function money2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+/** Line taxable (before GST) — sent to API as unit_price basis. */
+function lineTaxable(row) {
+  return Math.max(0, money2(Number(row.qty) * Number(row.rate) - Number(row.disc || 0)));
+}
+
+/** Line total after GST (what customer pays for the line). */
+function lineAmountAfterGst(row) {
+  const taxable = lineTaxable(row);
+  const gst = Math.max(0, Number(row.gst_rate) || 0);
+  return money2(taxable + (taxable * gst) / 100);
+}
+
 export default function PosBilling() {
   const savedDraft = readPosDraft() || {};
   const [products, setProducts] = useState([]);
@@ -162,17 +178,25 @@ export default function PosBilling() {
     const selected = products.find((p) => String(p.id) === String(productId));
     const newRows = [...rows];
     if (selected) {
-      const price = Number(selected.price);
+      const gst = Number(selected.gst_rate ?? companySettings?.gst_percentage ?? 0) || 0;
+      // Product.price is tax-exclusive; MRP shown is tax-inclusive
+      const rate = money2(Number(selected.price) || 0);
+      const mrp = money2(
+        Number(selected.selling_price_after_gst) || sellingGstMath(rate, gst).after
+      );
+      const qty = Number(newRows[index].qty) || 1;
+      const disc = Number(newRows[index].disc) || 0;
+      const taxable = Math.max(0, money2(qty * rate - disc));
       newRows[index] = {
         ...newRows[index],
         product_id: selected.id,
         product_name: selected.name,
         pack: selected.uom || '1 Unit',
         hsn: selected.hsn_code || '',
-        gst_rate: Number(selected.gst_rate ?? companySettings?.gst_percentage ?? 0),
-        mrp: price,
-        rate: price,
-        amount: price * newRows[index].qty - newRows[index].disc,
+        gst_rate: gst,
+        mrp,
+        rate,
+        amount: taxable,
       };
     } else {
       newRows[index] = {
@@ -192,15 +216,37 @@ export default function PosBilling() {
     const valNum = Number(value) || 0;
     newRows[index][field] = valNum;
 
-    const qty = field === 'qty' ? valNum : newRows[index].qty;
-    const rate = field === 'rate' ? valNum : newRows[index].rate;
-    const disc = field === 'disc' ? valNum : newRows[index].disc;
-    if (field === 'gst_rate') newRows[index].gst_rate = valNum;
+    let qty = Number(newRows[index].qty) || 0;
+    let rate = Number(newRows[index].rate) || 0;
+    let disc = Number(newRows[index].disc) || 0;
+    let gst = Number(newRows[index].gst_rate) || 0;
+    let mrp = Number(newRows[index].mrp) || 0;
 
-    newRows[index].amount = Math.max(0, qty * rate - disc);
+    if (field === 'qty') qty = valNum;
+    if (field === 'disc') disc = valNum;
+    if (field === 'gst_rate') {
+      gst = valNum;
+      // MRP is GST-inclusive — keep MRP, back-calculate taxable rate
+      if (mrp > 0) {
+        rate = beforeFromInclusive(mrp, gst).before;
+        newRows[index].rate = rate;
+      }
+    }
+    if (field === 'rate') {
+      rate = valNum;
+      // Keep RATE as taxable; refresh MRP (inclusive)
+      mrp = sellingGstMath(rate, gst).after;
+      newRows[index].mrp = mrp;
+    }
+    if (field === 'mrp') {
+      mrp = valNum;
+      rate = beforeFromInclusive(mrp, gst).before;
+      newRows[index].rate = rate;
+    }
+
+    newRows[index].amount = Math.max(0, money2(qty * rate - disc));
     setRows(newRows);
   };
-
   const focusProductInput = (rowIndex) => {
     requestAnimationFrame(() => {
       const input = tableContainerRef.current?.querySelector(
@@ -271,7 +317,7 @@ export default function PosBilling() {
   }, []);
 
   const validItems = rows.filter((r) => r.product_id && r.qty > 0);
-  const subtotal = validItems.reduce((sum, r) => sum + r.amount, 0);
+  const subtotal = validItems.reduce((sum, r) => sum + lineTaxable(r), 0);
   const totalItemsCount = validItems.reduce((sum, r) => sum + r.qty, 0);
   const companyGst = Number(companySettings?.gst_percentage || 0);
   const party = customers.find((c) => {
@@ -288,16 +334,15 @@ export default function PosBilling() {
   });
   const afterDiscount = Math.max(0, subtotal - Number(extraDiscount || 0));
   const discountRatio = subtotal > 0 ? afterDiscount / subtotal : 1;
-  const money2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
   const gstAmount = money2(validItems.reduce((sum, r) => {
     const rate = Number(r.gst_rate ?? companyGst) || 0;
-    return sum + (r.amount * discountRatio * rate / 100);
+    return sum + (lineTaxable(r) * discountRatio * rate / 100);
   }, 0));
   const gstPct = afterDiscount > 0 ? (gstAmount / afterDiscount) * 100 : companyGst;
   const cgstAmount = interstate ? 0 : money2(gstAmount / 2);
   const sgstAmount = interstate ? 0 : money2(gstAmount - cgstAmount);
   const igstAmount = interstate ? gstAmount : 0;
-  const finalTotal = afterDiscount + gstAmount;
+  const finalTotal = money2(afterDiscount + gstAmount);
 
   const collectedAmount = (() => {
     if (settlementType === 'full') return finalTotal;
@@ -658,7 +703,7 @@ export default function PosBilling() {
               <th>DISC</th>
               <th>RATE</th>
               <th>GST %</th>
-              <th style={{ textAlign: 'right' }}>AMOUNT</th>
+              <th style={{ textAlign: 'right' }}>AMOUNT (incl. GST)</th>
               <th style={{ width: '40px' }}></th>
             </tr>
           </thead>
@@ -789,7 +834,7 @@ export default function PosBilling() {
                   />
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: '800', color: '#0F172A' }}>
-                  ₹{row.amount.toFixed(2)}
+                  ₹{lineAmountAfterGst(row).toFixed(2)}
                 </td>
                 <td style={{ textAlign: 'center' }}>
                     <button
