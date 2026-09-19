@@ -40,7 +40,7 @@ urlpatterns = [
         auth_views.LogoutView.as_view(next_page="/billvice/"),
         name="logout",
     ),
-    # Billvice SPA (built assets use /billvice/assets/... after index rewrite)
+    # Billvice SPA — only from frontend/dist (see billvice_views + BILLVICE_DIST_DIR)
     path("billvice/", serve_billvice, name="billvice_app"),
     re_path(r"^billvice/(?P<path>.*)$", serve_billvice, name="billvice_app_paths"),
 

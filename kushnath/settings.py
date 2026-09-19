@@ -88,11 +88,12 @@ ROOT_URLCONF = "kushnath.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        # Do NOT put frontend/dist or build/ here — Billvice SPA is served by
+        # kushnath.billvice_views.serve_billvice from BILLVICE_DIST_DIR only.
+        # Putting dist/build in DIRS caused wrong index.html on deploy.
         "DIRS": [
             BASE_DIR / "templates",
-            BASE_DIR / "frontend" / "dist",
             BASE_DIR / "billing" / "templates",
-            BASE_DIR / "build",
         ],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -137,12 +138,16 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [
-    BASE_DIR / "frontend" / "dist",
     BASE_DIR / "billing" / "static",
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Kushnath Live legacy React build (catch-all assets only; not Billvice)
 FRONTEND_BUILD_DIR = BASE_DIR / "build"
+
+# Billvice React SPA — produced by: cd frontend && npm run build
+# Must contain index.html with asset URLs under /billvice/
+BILLVICE_DIST_DIR = BASE_DIR / "frontend" / "dist"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
