@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, render
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from advertisement.models import Slideshow
 from dashboard.models import Category, Product
@@ -240,6 +241,7 @@ def _base_context(**extra):
     return ctx
 
 
+@ensure_csrf_cookie
 def home(request):
     categories_qs = Category.objects.annotate(
         product_count=Count("products", filter=Q(products__available=True))
@@ -331,6 +333,7 @@ def home(request):
     )
 
 
+@ensure_csrf_cookie
 def product_detail(request, product_id):
     product = get_object_or_404(
         Product.objects.select_related("category").prefetch_related(
@@ -359,6 +362,7 @@ def product_detail(request, product_id):
     )
 
 
+@ensure_csrf_cookie
 def cart_page(request):
     all_products = [_product_to_dict(p) for p in Product.objects.filter(available=True).prefetch_related("images")]
     return render(
@@ -368,6 +372,7 @@ def cart_page(request):
     )
 
 
+@ensure_csrf_cookie
 def checkout_page(request):
     all_products = [_product_to_dict(p) for p in Product.objects.filter(available=True).prefetch_related("images")]
     return render(

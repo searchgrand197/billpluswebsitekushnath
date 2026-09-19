@@ -90,6 +90,7 @@
 {% block extra_js %}
 <script>
   PRODUCT_CATALOG = {{ products_json|safe }};
+  window.PRODUCT_CATALOG = PRODUCT_CATALOG;
   const RZ_KEY = "{{ razorpay_key }}";
 
   function updatePM() {
@@ -171,7 +172,8 @@
   async function createShopOrder(payload, auth) {
     const resp = await fetch('/api/orders/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${auth.access}` },
+      headers: apiHeaders({ 'Authorization': `Bearer ${auth.access}` }),
+      credentials: 'same-origin',
       body: JSON.stringify(payload),
     });
     const data = await resp.json().catch(() => ({}));
@@ -209,7 +211,8 @@
   async function payRazorpay(total, form, auth) {
     const rz = await fetch('/api/rz/orderid/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiHeaders(),
+      credentials: 'same-origin',
       body: JSON.stringify({ amount: Math.round(total * 100), receipt: `kn_${Date.now()}` }),
     });
     const rzData = await rz.json();

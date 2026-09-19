@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="Kushnath Ayurveda - 100% natural Ayurvedic products for wellness, beauty, immunity and daily health.">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}Kushnath Ayurveda{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -596,7 +597,18 @@
   <script>
     const CART_KEY = 'kushnath_cart';
     const AUTH_KEY = 'kushnath_auth';
-    let PRODUCT_CATALOG = [];
+    window.PRODUCT_CATALOG = window.PRODUCT_CATALOG || [];
+
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+      return match ? decodeURIComponent(match[1]) : '';
+    }
+    function apiHeaders(extra) {
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+      const csrf = getCookie('csrftoken') || document.querySelector('meta[name="csrf-token"]')?.content || '';
+      if (csrf) headers['X-CSRFToken'] = csrf;
+      return headers;
+    }
 
     function syncHeaderSpacer() {
       const header = document.getElementById('site-header');
@@ -670,22 +682,27 @@
 
     function getCart() { try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
     function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartCount(); }
-    function findProduct(id) { return PRODUCT_CATALOG.find(p => p.id == id); }
+    function findProduct(id) {
+      const nid = Number(id);
+      return (window.PRODUCT_CATALOG || []).find(p => Number(p.id) === nid);
+    }
     function addToCart(productOrId) {
-      let product = typeof productOrId === 'object' ? productOrId : findProduct(productOrId);
-      if (!product) { showToast('Product not found', 'error'); return; }
+      let product = typeof productOrId === 'object' && productOrId ? productOrId : findProduct(productOrId);
+      if (!product) { showToast('Product not found', 'error'); return false; }
+      const pid = Number(product.id);
       let cart = getCart();
-      const idx = cart.findIndex(i => i.id === product.id);
+      const idx = cart.findIndex(i => Number(i.id) === pid);
       if (idx > -1) cart[idx].qty += 1;
-      else cart.push({ id: product.id, name: product.name, price: product.sale_price, image: product.image, qty: 1, stock: product.stock });
+      else cart.push({ id: pid, name: product.name, price: product.sale_price, image: product.image, qty: 1, stock: product.stock });
       saveCart(cart);
       showToast(`${product.name} added to cart!`);
       animateCartIcon();
+      return true;
     }
-    function removeFromCart(id) { saveCart(getCart().filter(i => i.id !== id)); }
+    function removeFromCart(id) { saveCart(getCart().filter(i => Number(i.id) !== Number(id))); }
     function updateQty(id, delta) {
       let cart = getCart();
-      const idx = cart.findIndex(i => i.id === id);
+      const idx = cart.findIndex(i => Number(i.id) === Number(id));
       if (idx > -1) { cart[idx].qty = Math.max(1, Math.min(cart[idx].stock || 99, cart[idx].qty + delta)); saveCart(cart); }
     }
     function getCartTotal() { return getCart().reduce((s, i) => s + i.price * i.qty, 0); }
@@ -864,11 +881,15 @@
     async function backendLogin(normalizedPhone) {
       const r = await fetch('/api/token/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
+        credentials: 'same-origin',
         body: JSON.stringify({ username: normalizedPhone, password: normalizedPhone }),
       });
-      const d = await r.json();
-      if (!r.ok || !d.access) throw new Error(d.error || d.detail || 'Backend authentication failed');
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.access) {
+        const msg = d.error || d.detail || 'Backend authentication failed';
+        throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      }
       return d;
     }
 
@@ -929,10 +950,10 @@
   {% block extra_js %}{% endblock %}
   <script>
     (function(){
-      if (!PRODUCT_CATALOG.length) return;
-      const valid = new Set(PRODUCT_CATALOG.map(p => p.id));
+      if (!window.PRODUCT_CATALOG || !window.PRODUCT_CATALOG.length) return;
+      const valid = new Set(window.PRODUCT_CATALOG.map(p => Number(p.id)));
       const cart = getCart();
-      const next = cart.filter(i => valid.has(i.id));
+      const next = cart.filter(i => valid.has(Number(i.id)));
       if (next.length !== cart.length) saveCart(next);
     })();
   </script>

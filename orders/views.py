@@ -3,6 +3,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 from django.utils import timezone
@@ -17,6 +18,7 @@ from .serializers import (
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+    authentication_classes = [JWTAuthentication]  # JWT only — avoid session CSRF on storefront
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'payment_status', 'payment_method', 'customer_mobile', 'is_deliverable', 'shipment_created']
@@ -250,6 +252,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 class OrderStatusHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = OrderStatusHistory.objects.all()
     serializer_class = OrderStatusHistorySerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['order', 'status', 'changed_by']

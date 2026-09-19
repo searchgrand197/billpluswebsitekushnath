@@ -51,6 +51,7 @@
 {% block extra_js %}
 <script>
   PRODUCT_CATALOG = {{ products_json|safe }};
+  window.PRODUCT_CATALOG = PRODUCT_CATALOG;
 
   function renderCart() {
     const cart = getCart();

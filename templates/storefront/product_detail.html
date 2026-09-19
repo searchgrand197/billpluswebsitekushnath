@@ -125,6 +125,7 @@
 {% block extra_js %}
 <script>
   PRODUCT_CATALOG = {{ products_json|safe }};
+  window.PRODUCT_CATALOG = PRODUCT_CATALOG;
   const pid = {{ product.id }};
   const galleryImages = [
     {% for img in product.all_images %}"{{ img }}"{% if not forloop.last %},{% endif %}{% endfor %}
@@ -144,8 +145,12 @@
   function shiftGallery(delta) { setGalleryImage(galleryIndex + delta); }
 
   document.getElementById('add-btn')?.addEventListener('click', () => addToCart(pid));
-  document.getElementById('buy-btn')?.addEventListener('click', () => { addToCart(pid); window.location.href='/checkout/'; });
+  document.getElementById('buy-btn')?.addEventListener('click', () => {
+    if (addToCart(pid)) window.location.href = '/checkout/';
+  });
   document.getElementById('add-btn-mobile')?.addEventListener('click', () => addToCart(pid));
-  document.getElementById('buy-btn-mobile')?.addEventListener('click', () => { addToCart(pid); window.location.href='/checkout/'; });
+  document.getElementById('buy-btn-mobile')?.addEventListener('click', () => {
+    if (addToCart(pid)) window.location.href = '/checkout/';
+  });
 </script>
 {% endblock %}
