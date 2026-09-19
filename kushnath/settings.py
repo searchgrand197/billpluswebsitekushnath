@@ -219,16 +219,17 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
 ]
 
+# Secure cookies ONLY when explicitly enabled (HTTPS).
+# Do NOT tie this to DEBUG=false — that blanks login on HTTP servers.
+_secure = os.environ.get("DJANGO_SECURE_COOKIES", "false").lower() in ("1", "true", "yes")
+CSRF_COOKIE_SECURE = _secure
+SESSION_COOKIE_SECURE = _secure
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 14  # 14 days
 SESSION_SAVE_EVERY_REQUEST = True  # keep session alive while using the app
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-
-# Behind HTTPS nginx, secure cookies when DEBUG is off
-CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_NAME = "csrftoken"
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_PATH = "/"

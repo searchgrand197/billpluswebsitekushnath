@@ -5,12 +5,10 @@ Source:  frontend/          (Vite + React)
 Build:   cd frontend && npm install && npm run build
 Output:  frontend/dist/     (see settings.BILLVICE_DIST_DIR)
 
-URL map (all handled here — do not point nginx at build/ for these):
+URL map:
   /billvice/              -> dist/index.html
-  /billvice/login         -> dist/index.html   (React Router client route)
-  /billvice/assets/*.js   -> dist/assets/*.js  (hashed Vite files)
-
-Vite base and React basename must both be "/billvice/".
+  /billvice/login         -> dist/index.html   (React Router)
+  /billvice/assets/*.js   -> dist/assets/*.js  (must be real files — never HTML)
 """
 
 from __future__ import annotations
@@ -21,6 +19,44 @@ from pathlib import Path
 from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse
 
+# Never SPA-fallback these — returning HTML caused:
+# "Expected a JavaScript module but server responded with MIME type text/html"
+_STATIC_SUFFIXES = {
+    ".js",
+    ".mjs",
+    ".css",
+    ".map",
+    ".json",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".txt",
+    ".pdf",
+}
+
+_CONTENT_TYPES = {
+    ".js": "text/javascript",
+    ".mjs": "text/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".html": "text/html; charset=utf-8",
+}
+
 
 def billvice_dist_dir() -> Path:
     configured = getattr(settings, "BILLVICE_DIST_DIR", None)
@@ -30,9 +66,10 @@ def billvice_dist_dir() -> Path:
 
 
 def _safe_file(build_dir: Path, relative: str) -> Path | None:
-    """Return a file under build_dir, or None if missing / outside dist."""
     if not relative:
         return None
+    # Normalize URL path separators
+    relative = relative.replace("\\", "/").lstrip("/")
     file_path = (build_dir / relative).resolve()
     if build_dir not in file_path.parents and file_path != build_dir:
         raise Http404("Invalid path")
@@ -41,11 +78,18 @@ def _safe_file(build_dir: Path, relative: str) -> Path | None:
     return None
 
 
+def _content_type(file_path: Path) -> str:
+    suffix = file_path.suffix.lower()
+    if suffix in _CONTENT_TYPES:
+        return _CONTENT_TYPES[suffix]
+    guessed, _ = mimetypes.guess_type(str(file_path))
+    return guessed or "application/octet-stream"
+
+
 def _file_response(file_path: Path, *, cache_immutable: bool = False) -> FileResponse:
-    content_type, _ = mimetypes.guess_type(str(file_path))
     response = FileResponse(
         open(file_path, "rb"),
-        content_type=content_type or "application/octet-stream",
+        content_type=_content_type(file_path),
     )
     if cache_immutable:
         response["Cache-Control"] = "public, max-age=31536000, immutable"
@@ -58,39 +102,59 @@ def _missing_build_response(build_dir: Path) -> HttpResponse:
     msg = (
         "Billvice frontend build not found.\n\n"
         f"Expected: {build_dir / 'index.html'}\n\n"
-        "On the server (or before deploy), run:\n"
-        "  cd frontend\n"
-        "  npm install\n"
-        "  npm run build\n\n"
-        "Then ensure frontend/dist/ is uploaded next to manage.py.\n"
-        "Vite must use base: '/billvice/' (see frontend/vite.config.js).\n"
+        "Run: cd frontend && npm install && npm run build\n"
+        "Then upload the whole frontend/dist/ folder (index.html + assets/).\n"
     )
     return HttpResponse(msg, status=503, content_type="text/plain; charset=utf-8")
 
 
+def _missing_asset_response(build_dir: Path, path: str) -> HttpResponse:
+    assets_dir = build_dir / "assets"
+    available = sorted(p.name for p in assets_dir.glob("*")) if assets_dir.is_dir() else []
+    msg = (
+        f"Billvice asset not found: {path}\n\n"
+        f"Looked in: {build_dir / path}\n"
+        f"Available in assets/: {', '.join(available) or '(none — upload frontend/dist/assets/)'}\n\n"
+        "Fix: upload the FULL frontend/dist/ from the same build "
+        "(index.html and assets/ must match).\n"
+        "Do not SPA-fallback JS/CSS to index.html.\n"
+    )
+    return HttpResponse(msg, status=404, content_type="text/plain; charset=utf-8")
+
+
 def serve_billvice(request, path=""):
     """
-    Serve Billvice only from frontend/dist (never from templates/ or build/).
+    Serve Billvice from frontend/dist only.
 
-    Always returns dist/index.html for unknown paths so React Router can handle
-    /billvice/login, /billvice/pos, etc.
+    Static files (.js/.css/...) → real file or 404 (never HTML).
+    Other paths → index.html for React Router.
     """
-    path = path or ""
+    path = (path or "").replace("\\", "/").lstrip("/")
     build_dir = billvice_dist_dir()
     index_file = build_dir / "index.html"
 
     if not index_file.is_file():
         return _missing_build_response(build_dir)
 
-    # Real static file under dist (assets, favicon, etc.)
     if path:
         asset = _safe_file(build_dir, path)
-        if asset is not None:
-            immutable = asset.suffix in {".js", ".css", ".woff", ".woff2", ".png", ".svg", ".jpg", ".jpeg", ".webp"}
-            # Hashed Vite assets are immutable; favicons can be short-cached via same header OK
-            return _file_response(asset, cache_immutable=immutable and "assets" in path.replace("\\", "/"))
+        suffix = Path(path).suffix.lower()
+        looks_static = suffix in _STATIC_SUFFIXES or path.startswith("assets/")
 
-    # SPA fallback — always Billvice dist/index.html (never build/ or storefront home)
+        if asset is not None:
+            cache_immutable = "assets/" in path and suffix in {
+                ".js",
+                ".mjs",
+                ".css",
+                ".woff",
+                ".woff2",
+            }
+            return _file_response(asset, cache_immutable=cache_immutable)
+
+        # Critical: never return index.html for missing JS/CSS (MIME type error in browser)
+        if looks_static:
+            return _missing_asset_response(build_dir, path)
+
     response = _file_response(index_file, cache_immutable=False)
     response["X-Billvice-Index"] = str(index_file)
     return response
