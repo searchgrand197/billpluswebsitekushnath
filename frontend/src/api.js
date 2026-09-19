@@ -51,6 +51,7 @@ export const getDashboardData = () => api.get('dashboard/');
 export const getProducts = () => api.get('products/');
 export const createProduct = (data) => api.post('products/', data);
 export const updateProduct = (id, data) => api.put(`products/${id}/`, data);
+export const updateProductStock = (id, data) => api.post(`products/${id}/update_stock/`, data);
 export const deleteProduct = (id) => api.delete(`products/${id}/`);
 export const getCategories = () => api.get('categories/');
 export const createCategory = (data) => api.post('categories/', data);
@@ -113,5 +114,7 @@ export const getStockMovements = () => api.get('stock-movements/');
 
 // Invoice Cancellation
 export const cancelInvoice = (id) => api.post(`invoices/${id}/cancel/`);
+export const addInvoicePayment = (id, data) => api.post(`invoices/${id}/add_payment/`, data);
+export const getInvoicePayments = (id) => api.get(`invoices/${id}/payments/`);
 
 export default api;

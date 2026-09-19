@@ -216,14 +216,27 @@ class ProductViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def update_stock(self, request, pk=None):
         product = self.get_object()
-        stock = product.stock
-        quantity = request.data.get('quantity')
-        
+        stock = getattr(product, 'stock', None)
+        if stock is None:
+            stock = Stock.objects.create(product=product, quantity=Decimal('0'))
+
+        quantity = request.data.get('quantity', None)
+        threshold = request.data.get('low_stock_threshold', None)
+        if quantity is None and threshold is None:
+            return Response({'error': 'quantity or low_stock_threshold is required'}, status=400)
+
         if quantity is not None:
-            stock.quantity = Decimal(str(quantity))
-            stock.save()
-            return Response(StockSerializer(stock).data)
-        return Response({'error': 'quantity is required'}, status=400)
+            try:
+                stock.quantity = Decimal(str(quantity))
+            except Exception:
+                return Response({'error': 'Invalid quantity.'}, status=400)
+        if threshold is not None:
+            try:
+                stock.low_stock_threshold = Decimal(str(threshold))
+            except Exception:
+                return Response({'error': 'Invalid low_stock_threshold.'}, status=400)
+        stock.save()
+        return Response(StockSerializer(stock).data)
 
     def destroy(self, request, *args, **kwargs):
         try:
@@ -1349,6 +1362,114 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         invoice.save()
 
         return Response(InvoiceSerializer(invoice).data)
+
+    @action(detail=True, methods=['get'])
+    def payments(self, request, pk=None):
+        """List all payments recorded against this invoice (repeatable collections)."""
+        invoice = self.get_object()
+        qs = PaymentReceived.objects.filter(invoice=invoice).order_by('-payment_date', '-id')
+        return Response(PaymentReceivedSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=['post'], url_path='add_payment')
+    @transaction.atomic
+    def add_payment(self, request, pk=None):
+        """
+        Record a follow-up payment on a credit / partially_paid invoice.
+        Can be called many times with different dates and notes until fully paid.
+        """
+        invoice = self.get_object()
+        if invoice.status == 'cancelled':
+            return Response({'error': 'Cannot collect payment on a cancelled invoice.'}, status=400)
+        if invoice.status == 'paid' or (invoice.outstanding_amount or 0) <= 0:
+            return Response({'error': 'Invoice is already fully paid.'}, status=400)
+
+        try:
+            amount = Decimal(str(request.data.get('amount', '0') or '0'))
+        except Exception:
+            return Response({'error': 'Invalid amount.'}, status=400)
+        if amount <= 0:
+            return Response({'error': 'Enter an amount greater than zero.'}, status=400)
+
+        outstanding = Decimal(str(invoice.outstanding_amount or 0))
+        if amount > outstanding:
+            return Response(
+                {'error': f'Amount ₹{amount} exceeds outstanding ₹{outstanding}.'},
+                status=400,
+            )
+
+        payment_method = str(request.data.get('payment_method', 'cash') or 'cash').lower()
+        if payment_method not in ('cash', 'upi', 'bank_transfer', 'card', 'other'):
+            payment_method = 'cash'
+
+        payment_date_raw = request.data.get('payment_date') or timezone.localdate().isoformat()
+        try:
+            if hasattr(payment_date_raw, 'isoformat'):
+                payment_date = payment_date_raw
+            else:
+                from datetime import date as date_cls
+                payment_date = date_cls.fromisoformat(str(payment_date_raw)[:10])
+        except Exception:
+            payment_date = timezone.localdate()
+
+        notes = str(request.data.get('notes') or '').strip()
+        reference_number = str(request.data.get('reference_number') or '').strip()
+
+        cust_name = (invoice.customer_name or '').strip() or 'Walk-in Customer'
+        cust = Customer.objects.filter(name=cust_name).first()
+        if not cust:
+            cust = Customer.objects.create(
+                name=cust_name,
+                phone=invoice.customer_phone or '',
+            )
+        elif invoice.customer_phone and not cust.phone:
+            cust.phone = invoice.customer_phone
+            cust.save(update_fields=['phone', 'updated_at'])
+
+        payment = PaymentReceived.objects.create(
+            customer=cust,
+            invoice=invoice,
+            amount=amount,
+            payment_method=payment_method,
+            payment_date=payment_date,
+            notes=notes,
+            reference_number=reference_number,
+        )
+
+        # Update invoice balances
+        invoice.advance_paid = Decimal(str(invoice.advance_paid or 0)) + amount
+        invoice.outstanding_amount = max(Decimal('0'), outstanding - amount)
+        if invoice.outstanding_amount <= 0:
+            invoice.outstanding_amount = Decimal('0')
+            invoice.status = 'paid'
+        else:
+            invoice.status = 'partially_paid'
+        invoice.save(update_fields=['advance_paid', 'outstanding_amount', 'status', 'updated_at'])
+
+        # Customer ledger
+        last_entry = cust.ledger_entries.order_by('-id').first()
+        prev_balance = last_entry.balance_after if last_entry else cust.outstanding_balance
+        new_balance = prev_balance - amount
+        desc = f"Payment on Invoice #{invoice.invoice_number} ({payment.get_payment_method_display()})"
+        if notes:
+            desc = f"{desc} — {notes}"
+        CustomerLedgerEntry.objects.create(
+            customer=cust,
+            invoice=invoice,
+            entry_type='payment',
+            debit=Decimal('0'),
+            credit=amount,
+            balance_after=new_balance,
+            entry_date=payment_date,
+            description=desc[:500],
+        )
+        cust.outstanding_balance = new_balance
+        cust.save(update_fields=['outstanding_balance', 'updated_at'])
+
+        return Response({
+            'message': 'Payment recorded.',
+            'payment': PaymentReceivedSerializer(payment).data,
+            'invoice': InvoiceSerializer(invoice).data,
+        }, status=201)
 
 def dashboard(request):
     # Get statistics

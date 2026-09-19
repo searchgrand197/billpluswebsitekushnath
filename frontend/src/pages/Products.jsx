@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { getProducts, getCategories, createProduct, updateProduct, deleteProduct, getCompanySettings } from '../api';
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { getProducts, getCategories, createProduct, updateProduct, updateProductStock, deleteProduct, getCompanySettings } from '../api';
+import { Plus, Search, Trash2, Pencil } from 'lucide-react';
 import { useToast } from '../components/ToastContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import PricingGstCard from '../components/PricingGstCard';
@@ -17,6 +17,7 @@ export default function Products() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [hsn, setHsn] = useState('');
@@ -27,6 +28,8 @@ export default function Products() {
   const [sellingBefore, setSellingBefore] = useState('');
   const [sellingAfter, setSellingAfter] = useState('');
   const [gstRate, setGstRate] = useState('5');
+  const [stockQty, setStockQty] = useState('');
+  const [stockMin, setStockMin] = useState('');
   const [detail, setDetail] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -58,10 +61,12 @@ export default function Products() {
       setCategoryId(product.category ? String(product.category) : '');
       setUom(product.uom || 'unit');
       setPriceMode('before');
-      setCostPrice(String(product.cost_price || ''));
-      setSellingBefore(String(product.price || ''));
-      setSellingAfter(String(product.selling_price_after_gst || ''));
+      setCostPrice(String(product.cost_price ?? ''));
+      setSellingBefore(String(product.price ?? ''));
+      setSellingAfter(String(product.selling_price_after_gst ?? ''));
       setGstRate(normalizeGstRate(product.gst_rate, settings?.gst_percentage ?? 5));
+      setStockQty(String(product.stock?.quantity ?? '0'));
+      setStockMin(String(product.stock?.low_stock_threshold ?? '5'));
     } else {
       setEditing(null);
       setName('');
@@ -74,7 +79,16 @@ export default function Products() {
       setSellingBefore('');
       setSellingAfter('');
       setGstRate(normalizeGstRate(settings?.gst_percentage, 5));
+      setStockQty('0');
+      setStockMin('5');
     }
+  };
+
+  const openEdit = (product, e) => {
+    e?.stopPropagation?.();
+    resetForm(product);
+    setDetail(null);
+    setShowAddModal(true);
   };
 
   const handleSaveProduct = (e) => {
@@ -89,7 +103,7 @@ export default function Products() {
     }
     const generatedSku = sku.trim() || `SKU-${Math.floor(1000 + Math.random() * 9000)}`;
     const payload = {
-      name,
+      name: name.trim(),
       sku: generatedSku,
       hsn_code: hsn,
       uom,
@@ -99,18 +113,37 @@ export default function Products() {
       gst_rate: gst,
       price_mode: 'before',
     };
+    setSaving(true);
     const req = editing ? updateProduct(editing.id, payload) : createProduct(payload);
     req
-      .then(() => {
+      .then(async (res) => {
+        const saved = res.data;
+        const productId = editing?.id || saved?.id;
+        if (productId && (stockQty !== '' || stockMin !== '')) {
+          try {
+            await updateProductStock(productId, {
+              quantity: Number(stockQty || 0),
+              low_stock_threshold: Number(stockMin || 0),
+            });
+          } catch (stockErr) {
+            toast.showWarning('Product saved, but stock update failed.');
+          }
+        }
         toast.showSuccess(editing ? `Product '${name}' updated.` : `Product '${name}' created.`);
         setShowAddModal(false);
         resetForm();
         fetchData();
       })
       .catch((err) => {
-        const errMsg = err.response?.data?.sku?.[0] || err.response?.data?.price?.[0] || err.response?.data?.gst_rate?.[0] || err.response?.data?.detail || 'Failed to save product.';
+        const errMsg =
+          err.response?.data?.sku?.[0] ||
+          err.response?.data?.price?.[0] ||
+          err.response?.data?.gst_rate?.[0] ||
+          err.response?.data?.detail ||
+          'Failed to save product.';
         toast.showError(errMsg);
-      });
+      })
+      .finally(() => setSaving(false));
   };
 
   const filteredProducts = products.filter((p) => {
@@ -171,6 +204,7 @@ export default function Products() {
                 <th>GST %</th>
                 <th>Sell (after GST)</th>
                 <th>Stock</th>
+                <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -193,11 +227,22 @@ export default function Products() {
                   <td style={{ fontWeight: 700, color: (p.stock?.quantity || 0) <= (p.stock?.low_stock_threshold || 5) ? '#DC2626' : '#0F172A' }}>
                     {p.stock?.quantity || 0} {p.uom}
                   </td>
+                  <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn-smart btn-outline-smart"
+                      style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                      onClick={(e) => openEdit(p, e)}
+                      title="Edit product"
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>
                     No items found.
                   </td>
                 </tr>
@@ -208,7 +253,7 @@ export default function Products() {
       </div>
 
       {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
+        <div className="modal-backdrop" onClick={() => !saving && setShowAddModal(false)}>
           <div className="modal-content-smart" style={{ maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontWeight: '700', marginBottom: '16px' }}>{editing ? 'Edit Product' : 'Add Product Item'}</h3>
             <form onSubmit={handleSaveProduct}>
@@ -242,6 +287,14 @@ export default function Products() {
                   <label className="pos-field-label">HSN / SAC</label>
                   <input type="text" className="form-control-smart" value={hsn} onChange={(e) => setHsn(e.target.value)} />
                 </div>
+                <div>
+                  <label className="pos-field-label">Stock Qty</label>
+                  <input type="number" step="0.001" min="0" className="form-control-smart" value={stockQty} onChange={(e) => setStockQty(e.target.value)} />
+                </div>
+                <div>
+                  <label className="pos-field-label">Low Stock Alert At</label>
+                  <input type="number" step="0.001" min="0" className="form-control-smart" value={stockMin} onChange={(e) => setStockMin(e.target.value)} />
+                </div>
               </div>
               <PricingGstCard
                 settings={settings}
@@ -259,8 +312,10 @@ export default function Products() {
                 }}
               />
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: 16 }}>
-                <button type="button" className="btn-smart btn-secondary-smart" onClick={() => setShowAddModal(false)}>Cancel</button>
-                <button type="submit" className="btn-smart btn-primary-smart">{editing ? 'Update Product' : 'Save Product'}</button>
+                <button type="button" className="btn-smart btn-secondary-smart" disabled={saving} onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="submit" className="btn-smart btn-primary-smart" disabled={saving}>
+                  {saving ? 'Saving…' : editing ? 'Update Product' : 'Save Product'}
+                </button>
               </div>
             </form>
           </div>
@@ -287,7 +342,9 @@ export default function Products() {
               <button type="button" className="btn-smart btn-outline-smart" style={{ color: '#DC2626' }} onClick={() => { setDeleteTarget(detail); }}>
                 <Trash2 size={14} /> Delete
               </button>
-              <button type="button" className="btn-smart btn-primary-smart" onClick={() => { resetForm(detail); setDetail(null); setShowAddModal(true); }}>Edit</button>
+              <button type="button" className="btn-smart btn-primary-smart" onClick={() => openEdit(detail)}>
+                <Pencil size={14} /> Edit
+              </button>
             </div>
           </div>
         </div>
