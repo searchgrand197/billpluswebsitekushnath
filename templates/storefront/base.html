@@ -680,8 +680,18 @@
       }
     });
 
-    function getCart() { try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
-    function saveCart(cart) { localStorage.setItem(CART_KEY, JSON.stringify(cart)); updateCartCount(); }
+    function getCart() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(CART_KEY));
+        return Array.isArray(raw) ? raw : [];
+      } catch {
+        return [];
+      }
+    }
+    function saveCart(cart) {
+      localStorage.setItem(CART_KEY, JSON.stringify(Array.isArray(cart) ? cart : []));
+      updateCartCount();
+    }
     function findProduct(id) {
       const nid = Number(id);
       return (window.PRODUCT_CATALOG || []).find(p => Number(p.id) === nid);
