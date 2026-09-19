@@ -40,9 +40,9 @@ urlpatterns = [
         auth_views.LogoutView.as_view(next_page="/billvice/"),
         name="logout",
     ),
-    # Billvice SPA — only from frontend/dist (see billvice_views + BILLVICE_DIST_DIR)
-    path("billvice/", serve_billvice, name="billvice_app"),
-    re_path(r"^billvice/(?P<path>.*)$", serve_billvice, name="billvice_app_paths"),
+    # Billvice SPA — ONLY from frontend/dist (never build/index.html / storefront home)
+    # Matches /billvice, /billvice/, /billvice/login, /billvice/assets/...
+    re_path(r"^billvice(?:/(?P<path>.*))?$", serve_billvice, name="billvice_app"),
 
     # --- Kushnath Live storefront pages ---
     path("", home, name="home"),

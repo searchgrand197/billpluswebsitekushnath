@@ -75,6 +75,7 @@ def serve_billvice(request, path=""):
     Always returns dist/index.html for unknown paths so React Router can handle
     /billvice/login, /billvice/pos, etc.
     """
+    path = path or ""
     build_dir = billvice_dist_dir()
     index_file = build_dir / "index.html"
 
@@ -89,5 +90,7 @@ def serve_billvice(request, path=""):
             # Hashed Vite assets are immutable; favicons can be short-cached via same header OK
             return _file_response(asset, cache_immutable=immutable and "assets" in path.replace("\\", "/"))
 
-    # SPA fallback — always the Billvice index from dist, never Django templates
-    return _file_response(index_file, cache_immutable=False)
+    # SPA fallback — always Billvice dist/index.html (never build/ or storefront home)
+    response = _file_response(index_file, cache_immutable=False)
+    response["X-Billvice-Index"] = str(index_file)
+    return response

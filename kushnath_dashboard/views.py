@@ -17,7 +17,14 @@ def _resolve_build_path(relative_path=""):
 
 
 def serve_frontend(request, path=""):
-    """Serve legacy React build assets only; redirect HTML routes to Django storefront."""
+    """Serve legacy Live React assets from build/; never steal /billvice/."""
+    # Safety: /billvice must never hit this catch-all (would redirect to storefront home)
+    if path == "billvice" or path.startswith("billvice/"):
+        from kushnath.billvice_views import serve_billvice
+
+        sub = "" if path == "billvice" else path[len("billvice/") :]
+        return serve_billvice(request, path=sub)
+
     if path:
         file_path = _resolve_build_path(path)
         if file_path.is_file():
@@ -32,5 +39,5 @@ def serve_frontend(request, path=""):
                 response["Cache-Control"] = "public, max-age=31536000, immutable"
             return response
 
-    # Old React SPA routes (e.g. /billing, /shop) → new storefront
+    # Old Live SPA client routes → Django storefront home
     return redirect("/")
