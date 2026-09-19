@@ -162,7 +162,7 @@ export default function Invoices() {
                   <td style={{ textAlign: 'center' }}>
                     <div style={{ display: 'inline-flex', gap: '6px' }}>
                       <a
-                        href={`http://localhost:8000/billing/invoices/${inv.id}/print/`}
+                        href={`/billing/invoices/${inv.id}/print/`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn-smart btn-outline-smart"
@@ -171,7 +171,7 @@ export default function Invoices() {
                         <Printer size={14} /> Print
                       </a>
                       <a
-                        href={`http://localhost:8000/billing/invoices/${inv.id}/pdf/`}
+                        href={`/billing/invoices/${inv.id}/pdf/`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn-smart btn-secondary-smart"

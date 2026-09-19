@@ -423,8 +423,8 @@ export default function Customers() {
                                 <td className="no-print">
                                   {e.invoice_id ? (
                                     <span style={{ display: 'inline-flex', gap: 6 }}>
-                                      <a href={`http://localhost:8000/billing/invoices/${e.invoice_id}/print/`} target="_blank" rel="noreferrer" title="View / Print"><Eye size={14} /></a>
-                                      <a href={`http://localhost:8000/billing/invoices/${e.invoice_id}/print/`} target="_blank" rel="noreferrer" title="Print"><Printer size={14} /></a>
+                                      <a href={`/billing/invoices/${e.invoice_id}/print/`} target="_blank" rel="noreferrer" title="View / Print"><Eye size={14} /></a>
+                                      <a href={`/billing/invoices/${e.invoice_id}/print/`} target="_blank" rel="noreferrer" title="Print"><Printer size={14} /></a>
                                     </span>
                                   ) : '—'}
                                 </td>

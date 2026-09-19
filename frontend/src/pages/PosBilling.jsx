@@ -367,7 +367,7 @@ export default function PosBilling() {
         const msg = `Bill #${inv.invoice_number} saved successfully! Total: ₹${inv.total_amount}`;
         toast.showSuccess(msg);
         if (!isEstimate) {
-          window.open(`http://localhost:8000/billing/invoices/${inv.id}/print/`, '_blank');
+          window.open(`/billing/invoices/${inv.id}/print/`, '_blank');
         }
         setRows([emptyPosRow(1, companySettings?.gst_percentage ?? 0)]);
         setCustomerName('');
