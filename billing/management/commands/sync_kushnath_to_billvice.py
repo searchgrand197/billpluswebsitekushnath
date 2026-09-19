@@ -41,11 +41,16 @@ from billing.models import (
     StockMovementLog,
     Supplier,
 )
+from billing.procurement import before_from_inclusive, money
 from dashboard.models import Category as KushnathCategory
 from dashboard.models import Product as KushnathProduct
 
 
+DEFAULT_GST_RATE = Decimal("5.00")
+
+
 def _sale_price(p: KushnathProduct) -> Decimal:
+    """Website MRP (GST-inclusive)."""
     price = Decimal(p.price or 0)
     discount = Decimal(p.discount or 0)
     if discount > 0:
@@ -180,9 +185,10 @@ class Command(BaseCommand):
 
         for kp in source_products:
             sku = _unique_sku(kp.sku or f"KN-{kp.id}", used_skus)
-            sale = _sale_price(kp)
-            # Assume storefront price is tax-inclusive; store as selling price, cost ~70%
-            cost = (sale * Decimal("0.70")).quantize(Decimal("0.01"))
+            mrp_inclusive = _sale_price(kp)
+            # Billvice Product.price is tax-EXCLUSIVE; back-calculate from MRP
+            taxable, gst_amt, _ = before_from_inclusive(mrp_inclusive, DEFAULT_GST_RATE)
+            cost = money(taxable * Decimal("0.70"))
             desc_bits = []
             if kp.quantity:
                 desc_bits.append(str(kp.quantity))
@@ -194,12 +200,12 @@ class Command(BaseCommand):
                 name=kp.name[:200],
                 description=description,
                 cost_price=cost,
-                price=sale,
+                price=taxable,
                 type="sale",
                 uom="unit",
                 sku=sku,
                 hsn_code="",
-                gst_rate=Decimal("5.00"),  # default Ayurvedic GST; adjust in Billvice if needed
+                gst_rate=DEFAULT_GST_RATE,
                 category=cat_map.get(kp.category_id),
             )
             Stock.objects.create(
@@ -208,8 +214,10 @@ class Command(BaseCommand):
                 low_stock_threshold=Decimal("10"),
             )
             created_products += 1
-            self.stdout.write(f"  imported {bp.name} ({bp.sku}) qty={kp.stock} @ {sale}")
-
+            self.stdout.write(
+                f"  imported {bp.name} ({bp.sku}) "
+                f"MRP={mrp_inclusive} -> taxable={taxable} +GST{DEFAULT_GST_RATE}%={gst_amt} qty={kp.stock}"
+            )
         self.stdout.write(self.style.SUCCESS(
             f"Done. Categories: {created_cats} new. Products imported: {created_products}."
         ))
