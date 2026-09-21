@@ -24,6 +24,7 @@ import BalanceSheet from './pages/BalanceSheet';
 import Settings from './pages/Settings';
 import RawMaterials from './pages/RawMaterials';
 import Manufacturing from './pages/Manufacturing';
+import WebsiteCatalog from './pages/WebsiteCatalog';
 
 function ProtectedLayout() {
   const { user, ready, clearSession } = useAuth();
@@ -60,6 +61,7 @@ function ProtectedLayout() {
             <Route path="/invoices" element={<Invoices />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/products" element={<Products />} />
+            <Route path="/website-catalog" element={<WebsiteCatalog />} />
             <Route path="/stock" element={<Stock />} />
             <Route path="/purchase-orders" element={<PurchaseOrders />} />
             <Route path="/purchase-orders/create" element={<PurchaseOrderForm />} />

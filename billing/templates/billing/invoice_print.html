@@ -386,7 +386,7 @@
                         <td class="text-center">{{ item.product.hsn_code|default:"—" }}</td>
                         <td class="text-center">{% if batch %}{{ batch.batch_number }}{% else %}—{% endif %}</td>
                         <td class="text-center">{% if batch and batch.exp_date %}{{ batch.exp_date|date:"m/y" }}{% else %}—{% endif %}</td>
-                        <td class="text-right">{{ item.product.price|floatformat:2 }}</td>
+                        <td class="text-right">{{ item.line_mrp|floatformat:2 }}</td>
                         <td class="text-center">{{ item.disc_percent|floatformat:2 }}</td>
                         <td class="text-right">{{ item.unit_price|floatformat:2 }}</td>
                         <td class="text-center">{{ item.effective_gst_rate|floatformat:2 }}</td>

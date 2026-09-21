@@ -15,6 +15,7 @@ import {
   Leaf,
   Factory,
   ChevronDown,
+  Globe,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -67,6 +68,11 @@ export default function Sidebar() {
         <NavLink to="/products" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title="Products Catalog">
           <Package size={20} className="nav-icon" />
           <span className="nav-label">Finished Products</span>
+        </NavLink>
+
+        <NavLink to="/website-catalog" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title="Website Products">
+          <Globe size={20} className="nav-icon" />
+          <span className="nav-label">Website Products</span>
         </NavLink>
 
         <NavLink to="/stock" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title="Stock Monitor">

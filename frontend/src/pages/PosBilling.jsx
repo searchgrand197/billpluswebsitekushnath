@@ -56,9 +56,25 @@ function money2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
+/** Clamp discount percent 0–100. */
+function clampPct(p) {
+  const n = Number(p);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(100, n);
+}
+
+function lineGross(row) {
+  return money2(Number(row.qty) * Number(row.rate));
+}
+
+/** Line discount as ₹ from DISC %. */
+function lineDiscAmount(row) {
+  return money2(lineGross(row) * (clampPct(row.disc) / 100));
+}
+
 /** Line taxable (before GST) — sent to API as unit_price basis. */
 function lineTaxable(row) {
-  return Math.max(0, money2(Number(row.qty) * Number(row.rate) - Number(row.disc || 0)));
+  return Math.max(0, money2(lineGross(row) - lineDiscAmount(row)));
 }
 
 /** Line total after GST (what customer pays for the line). */
@@ -185,8 +201,8 @@ export default function PosBilling() {
         Number(selected.selling_price_after_gst) || sellingGstMath(rate, gst).after
       );
       const qty = Number(newRows[index].qty) || 1;
-      const disc = Number(newRows[index].disc) || 0;
-      const taxable = Math.max(0, money2(qty * rate - disc));
+      const discPct = clampPct(newRows[index].disc);
+      const taxable = Math.max(0, money2(qty * rate * (1 - discPct / 100)));
       newRows[index] = {
         ...newRows[index],
         product_id: selected.id,
@@ -214,16 +230,18 @@ export default function PosBilling() {
   const handleRowChange = (index, field, value) => {
     const newRows = [...rows];
     const valNum = Number(value) || 0;
-    newRows[index][field] = valNum;
+    if (field !== 'amount') {
+      newRows[index][field] = field === 'disc' ? clampPct(valNum) : valNum;
+    }
 
     let qty = Number(newRows[index].qty) || 0;
     let rate = Number(newRows[index].rate) || 0;
-    let disc = Number(newRows[index].disc) || 0;
+    let discPct = clampPct(newRows[index].disc);
     let gst = Number(newRows[index].gst_rate) || 0;
     let mrp = Number(newRows[index].mrp) || 0;
 
     if (field === 'qty') qty = valNum;
-    if (field === 'disc') disc = valNum;
+    if (field === 'disc') discPct = clampPct(valNum);
     if (field === 'gst_rate') {
       gst = valNum;
       // MRP is GST-inclusive — keep MRP, back-calculate taxable rate
@@ -243,8 +261,20 @@ export default function PosBilling() {
       rate = beforeFromInclusive(mrp, gst).before;
       newRows[index].rate = rate;
     }
+    // Amount is GST-inclusive; reverse-calculate DISC % from list rate × qty
+    if (field === 'amount') {
+      const gross = money2(qty * rate);
+      if (gross > 0) {
+        const desiredTaxable =
+          gst > 0 ? money2(valNum / (1 + gst / 100)) : money2(valNum);
+        discPct = clampPct((1 - desiredTaxable / gross) * 100);
+      } else {
+        discPct = 0;
+      }
+      newRows[index].disc = discPct;
+    }
 
-    newRows[index].amount = Math.max(0, money2(qty * rate - disc));
+    newRows[index].amount = Math.max(0, money2(qty * rate * (1 - discPct / 100)));
     setRows(newRows);
   };
   const focusProductInput = (rowIndex) => {
@@ -332,7 +362,8 @@ export default function PosBilling() {
     customerGstin: party?.gstin || '',
     customerState: party?.state || '',
   });
-  const afterDiscount = Math.max(0, subtotal - Number(extraDiscount || 0));
+  const afterDiscount = Math.max(0, money2(subtotal * (1 - clampPct(extraDiscount) / 100)));
+  const billDiscAmount = money2(subtotal - afterDiscount);
   const discountRatio = subtotal > 0 ? afterDiscount / subtotal : 1;
   const gstAmount = money2(validItems.reduce((sum, r) => {
     const rate = Number(r.gst_rate ?? companyGst) || 0;
@@ -396,13 +427,18 @@ export default function PosBilling() {
       notes: isEstimate
         ? 'Estimate Bill'
         : `POS sale · ${payment_type === 'full_credit' ? 'CREDIT' : String(payment_method).toUpperCase()} · ${payment_type.replace('_', ' ')}`,
-      items: validItems.map((r) => ({
-        product_id: r.product_id,
-        quantity: r.qty,
-        unit_price: r.rate,
-        discount: r.disc || 0,
-        gst_rate: r.gst_rate,
-      })),
+      items: validItems.map((r) => {
+        const lineDisc = lineDiscAmount(r);
+        const taxableAfterLine = lineTaxable(r);
+        const billShare = money2(taxableAfterLine * (clampPct(extraDiscount) / 100));
+        return {
+          product_id: r.product_id,
+          quantity: r.qty,
+          unit_price: r.rate,
+          discount: money2(lineDisc + billShare),
+          gst_rate: r.gst_rate,
+        };
+      }),
     };
 
     createInvoicePos(payload)
@@ -700,7 +736,7 @@ export default function PosBilling() {
               <th>MRP</th>
               <th>QTY</th>
               <th>LOOSE</th>
-              <th>DISC</th>
+              <th>DISC %</th>
               <th>RATE</th>
               <th>GST %</th>
               <th style={{ textAlign: 'right' }}>AMOUNT (incl. GST)</th>
@@ -808,9 +844,13 @@ export default function PosBilling() {
                 <td>
                   <input
                     type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
                     className="pos-table-input"
                     value={row.disc}
                     onChange={(e) => handleRowChange(idx, 'disc', e.target.value)}
+                    title="Discount percent on this line"
                   />
                 </td>
                 <td>
@@ -833,8 +873,17 @@ export default function PosBilling() {
                     style={{ fontWeight: '800', textAlign: 'center', backgroundColor: '#F0FDFA', color: '#0F766E' }}
                   />
                 </td>
-                <td style={{ textAlign: 'right', fontWeight: '800', color: '#0F172A' }}>
-                  ₹{lineAmountAfterGst(row).toFixed(2)}
+                <td>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="pos-table-input"
+                    value={lineAmountAfterGst(row)}
+                    onChange={(e) => handleRowChange(idx, 'amount', e.target.value)}
+                    title="Edit amount — discount % adjusts automatically"
+                    style={{ textAlign: 'right', fontWeight: '800', color: '#0F172A' }}
+                  />
                 </td>
                 <td style={{ textAlign: 'center' }}>
                     <button
@@ -869,22 +918,26 @@ export default function PosBilling() {
         >
           <Plus size={16} /> Add row
         </button>
-        <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Ctrl+Enter — add new row · Tab: Qty → Loose → Disc → Rate</span>
+        <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Ctrl+Enter — add new row · Tab: Qty → Loose → Disc% → Rate</span>
       </div>
 
       {/* Bottom Summary Bar from Image 1 */}
       <div className="pos-summary-bar">
         <div className="summary-pills-group">
-          {/* Discount Pill */}
-          <div className="pos-field-box" style={{ width: '130px', minHeight: '44px', borderRadius: '20px' }}>
-            <span className="pos-field-label" style={{ borderRadius: '4px' }}>DISCOUNT ₹</span>
+          {/* Discount Pill — percent */}
+          <div className="pos-field-box" style={{ width: '140px', minHeight: '44px', borderRadius: '20px' }}>
+            <span className="pos-field-label" style={{ borderRadius: '4px' }}>DISCOUNT %</span>
             <input
               type="number"
+              min="0"
+              max="100"
+              step="0.01"
               placeholder="0"
               className="pos-input-text"
               style={{ textAlign: 'center', fontWeight: '700' }}
               value={extraDiscount}
-              onChange={(e) => setExtraDiscount(e.target.value)}
+              onChange={(e) => setExtraDiscount(clampPct(e.target.value))}
+              title={billDiscAmount > 0 ? `Equals ₹${billDiscAmount.toFixed(2)} off subtotal` : 'Bill-level discount percent'}
             />
           </div>
 
@@ -1045,9 +1098,9 @@ export default function PosBilling() {
           <div className="modal-content-smart">
             <h3 style={{ fontWeight: '700', marginBottom: '16px' }}>Add Quick Product Item</h3>
             <form onSubmit={handleCreateProductSubmit}>
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '600', color: '#64748B', display: 'block', marginBottom: '4px' }}>Item Name</label>
-                <input type="text" className="form-control-smart" required value={newProdName} onChange={(e) => setNewProdName(e.target.value)} />
+              <div className="form-field">
+                <label className="form-field-label" htmlFor="pos-new-prod-name">Item name *</label>
+                <input id="pos-new-prod-name" type="text" className="form-control-smart" required value={newProdName} onChange={(e) => setNewProdName(e.target.value)} placeholder="e.g. Ashwagandha Churna 100g" />
               </div>
               <PricingGstCard
                 settings={companySettings}

@@ -107,6 +107,7 @@ export const getManufacturingLogs = (params) => api.get('manufacturing/', { para
 export const createManufacturingLog = (data) => api.post('manufacturing/', data);
 export const updateManufacturingLog = (id, data) => api.patch(`manufacturing/${id}/`, data);
 export const finalizeManufacturingLog = (id, data = {}) => api.post(`manufacturing/${id}/finalize/`, data);
+export const recordManufacturingOutput = (id, data) => api.post(`manufacturing/${id}/record_output/`, data);
 export const deleteManufacturingLog = (id) => api.delete(`manufacturing/${id}/`);
 
 // Stock Movements API

@@ -195,12 +195,30 @@ export default function PurchaseOrderDetail() {
                   Ordered {Number(it.quantity).toFixed(3)} · Received {Number(it.received_quantity || 0).toFixed(3)} · Remaining {Number(it.remaining_quantity).toFixed(3)} {it.uom}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 8 }}>
-                  <input type="number" className="form-control-smart" placeholder="This receipt qty" value={recv[it.id]?.quantity || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], quantity: e.target.value } })} />
-                  <input className="form-control-smart" placeholder="Batch no." value={recv[it.id]?.batch_number || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], batch_number: e.target.value } })} />
-                  <input className="form-control-smart" placeholder="Location" value={recv[it.id]?.location || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], location: e.target.value } })} />
-                  <input type="date" className="form-control-smart" value={recv[it.id]?.mfg_date || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], mfg_date: e.target.value } })} />
-                  <input type="date" className="form-control-smart" value={recv[it.id]?.expiry_date || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], expiry_date: e.target.value } })} />
-                  <input className="form-control-smart" placeholder="Supplier batch" value={recv[it.id]?.supplier_batch_number || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], supplier_batch_number: e.target.value } })} />
+                  <div>
+                    <label className="pos-field-label">This receipt qty</label>
+                    <input type="number" className="form-control-smart" value={recv[it.id]?.quantity || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], quantity: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="pos-field-label">Batch no.</label>
+                    <input className="form-control-smart" value={recv[it.id]?.batch_number || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], batch_number: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="pos-field-label">Location</label>
+                    <input className="form-control-smart" value={recv[it.id]?.location || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], location: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="pos-field-label">Mfg date</label>
+                    <input type="date" className="form-control-smart" value={recv[it.id]?.mfg_date || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], mfg_date: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="pos-field-label">Expiry date</label>
+                    <input type="date" className="form-control-smart" value={recv[it.id]?.expiry_date || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], expiry_date: e.target.value } })} />
+                  </div>
+                  <div>
+                    <label className="pos-field-label">Supplier batch</label>
+                    <input className="form-control-smart" value={recv[it.id]?.supplier_batch_number || ''} onChange={(e) => setRecv({ ...recv, [it.id]: { ...recv[it.id], supplier_batch_number: e.target.value } })} />
+                  </div>
                 </div>
               </div>
             ))}

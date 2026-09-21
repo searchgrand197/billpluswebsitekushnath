@@ -534,9 +534,9 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
 
         return recipe, consumed_plan, raw_material_cost, shortages
 
-    def _execute_manufacturing_batch(self, mfg_log, product, consumed_plan, prod_qty, batch_no, mfg_date, exp_date, unit_cost, update_cost_price):
+    def _consume_raw_materials(self, mfg_log, product, consumed_plan, estimated_qty):
+        """Deduct raw materials scaled to estimated production quantity."""
         mfg_id = mfg_log.manufacturing_id
-
         for plan in consumed_plan:
             rm = plan['raw_material']
             qty = plan['required_qty']
@@ -564,12 +564,15 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
                 unit_cost=plan['unit_cost'],
                 amount=plan['total_cost'],
                 reference_id=mfg_id,
-                reason=f"Consumed for manufacturing {prod_qty} units of {product.name}",
+                reason=f"Consumed for estimated {estimated_qty} units of {product.name}",
             )
 
+    def _add_finished_output(self, mfg_log, product, actual_qty, batch_no, mfg_date, exp_date, unit_cost, update_cost_price):
+        """Post finished goods stock for actual (good) units only."""
+        mfg_id = mfg_log.manufacturing_id
         stock, _ = Stock.objects.get_or_create(product=product)
         prev_prod_stk = stock.quantity
-        new_prod_stk = prev_prod_stk + prod_qty
+        new_prod_stk = prev_prod_stk + actual_qty
         stock.quantity = new_prod_stk
         stock.save()
 
@@ -577,19 +580,19 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
             item_type='finished_product',
             product=product,
             movement_type='manufacturing_output',
-            quantity=prod_qty,
+            quantity=actual_qty,
             previous_balance=prev_prod_stk,
             new_balance=new_prod_stk,
             reference_id=mfg_id,
-            reason=f"Batch {batch_no} manufactured",
+            reason=f"Batch {batch_no} actual output {actual_qty} units",
         )
 
         ProductBatch.objects.create(
             product=product,
             manufacturing=mfg_log,
             batch_number=batch_no,
-            produced_quantity=prod_qty,
-            remaining_quantity=prod_qty,
+            produced_quantity=actual_qty,
+            remaining_quantity=actual_qty,
             mfg_date=mfg_date,
             exp_date=exp_date or None,
             unit_cost=unit_cost,
@@ -599,13 +602,114 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
             product.cost_price = unit_cost
             product.save(update_fields=['cost_price', 'updated_at'])
 
-    def _apply_costs(self, mfg_log, raw_material_cost, labor_cost, packaging_cost, other_overhead_cost, prod_qty):
+    def _adjust_finished_output(self, mfg_log, product, new_actual, unit_cost, update_cost_price):
+        """Adjust stock/batch when actual qty is edited after first posting."""
+        batch = getattr(mfg_log, 'finished_batch', None)
+        if batch is None:
+            self._add_finished_output(
+                mfg_log, product, new_actual,
+                mfg_log.batch_number, mfg_log.mfg_date, mfg_log.exp_date,
+                unit_cost, update_cost_price,
+            )
+            return
+
+        old_produced = Decimal(str(batch.produced_quantity or 0))
+        delta = new_actual - old_produced
+        if delta == 0:
+            batch.unit_cost = unit_cost
+            batch.save(update_fields=['unit_cost'])
+            if update_cost_price and unit_cost > 0:
+                product.cost_price = unit_cost
+                product.save(update_fields=['cost_price', 'updated_at'])
+            return
+
+        stock, _ = Stock.objects.get_or_create(product=product)
+        prev_stk = stock.quantity
+        new_stk = prev_stk + delta
+        if new_stk < 0:
+            raise ValueError(
+                f'Cannot reduce actual output: finished stock would go negative '
+                f'(need to remove {abs(delta)}, available {prev_stk}).'
+            )
+
+        # Keep remaining in sync with produced delta, without going below 0
+        sold_from_batch = old_produced - Decimal(str(batch.remaining_quantity or 0))
+        new_remaining = max(Decimal('0'), new_actual - sold_from_batch)
+        if new_remaining > new_actual:
+            new_remaining = new_actual
+
+        stock.quantity = new_stk
+        stock.save()
+        batch.produced_quantity = new_actual
+        batch.remaining_quantity = new_remaining
+        batch.unit_cost = unit_cost
+        batch.save(update_fields=['produced_quantity', 'remaining_quantity', 'unit_cost'])
+
+        StockMovementLog.objects.create(
+            item_type='finished_product',
+            product=product,
+            movement_type='manufacturing_output',
+            quantity=delta,
+            previous_balance=prev_stk,
+            new_balance=new_stk,
+            reference_id=mfg_log.manufacturing_id,
+            reason=f"Batch {mfg_log.batch_number} actual output adjusted to {new_actual}",
+        )
+
+        if update_cost_price and unit_cost > 0:
+            product.cost_price = unit_cost
+            product.save(update_fields=['cost_price', 'updated_at'])
+
+    def _parse_actual_quantity(self, data, estimated_qty, required=False):
+        raw = data.get('actual_quantity', None)
+        if raw is None or str(raw).strip() == '':
+            if required:
+                return None, 'Enter actual good units after production.'
+            return None, None
+        try:
+            actual = Decimal(str(raw))
+        except Exception:
+            return None, 'Invalid actual quantity.'
+        if actual <= 0:
+            return None, 'Actual quantity must be greater than zero.'
+        if actual > estimated_qty:
+            return None, f'Actual quantity cannot exceed estimated ({estimated_qty}).'
+        return actual, None
+
+    def _apply_costs(self, mfg_log, raw_material_cost, labor_cost, packaging_cost, other_overhead_cost, divisor_qty):
         mfg_log.raw_material_cost = raw_material_cost
         mfg_log.labor_cost = labor_cost
         mfg_log.packaging_cost = packaging_cost
         mfg_log.other_overhead_cost = other_overhead_cost
         mfg_log.total_cost = raw_material_cost + labor_cost + packaging_cost + other_overhead_cost
-        mfg_log.unit_cost = (mfg_log.total_cost / prod_qty) if prod_qty > 0 else Decimal('0')
+        mfg_log.unit_cost = (mfg_log.total_cost / divisor_qty) if divisor_qty > 0 else Decimal('0')
+
+    def _start_manufacturing(self, mfg_log, product, consumed_plan, estimated_qty, actual_qty, update_cost_price):
+        """
+        Consume RM for estimated. If actual provided, post finished stock and complete;
+        otherwise leave batch in_progress awaiting record_output.
+        """
+        self._consume_raw_materials(mfg_log, product, consumed_plan, estimated_qty)
+        if actual_qty is not None:
+            mfg_log.actual_quantity = actual_qty
+            mfg_log.wastage_quantity = estimated_qty - actual_qty
+            self._apply_costs(
+                mfg_log, mfg_log.raw_material_cost,
+                mfg_log.labor_cost, mfg_log.packaging_cost, mfg_log.other_overhead_cost,
+                actual_qty,
+            )
+            mfg_log.status = 'completed'
+            mfg_log.save()
+            self._add_finished_output(
+                mfg_log, product, actual_qty,
+                mfg_log.batch_number, mfg_log.mfg_date, mfg_log.exp_date,
+                mfg_log.unit_cost, update_cost_price,
+            )
+        else:
+            mfg_log.actual_quantity = None
+            mfg_log.wastage_quantity = Decimal('0')
+            mfg_log.status = 'in_progress'
+            mfg_log.save(update_fields=['actual_quantity', 'wastage_quantity', 'status', 'updated_at'])
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -617,6 +721,10 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
         product = payload['product']
         prod_qty = payload['prod_qty']
         check_stock = not save_as_draft
+
+        actual_qty, actual_err = self._parse_actual_quantity(request.data, prod_qty, required=False)
+        if actual_err:
+            return Response({'error': actual_err}, status=status.HTTP_400_BAD_REQUEST)
 
         recipe, consumed_plan, raw_material_cost, shortages = self._manufacturing_plan(product, prod_qty, check_stock=check_stock)
 
@@ -641,7 +749,7 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
             batch_number=payload['batch_no'],
             mfg_date=payload['mfg_date'],
             exp_date=payload['exp_date'],
-            status='draft' if save_as_draft else 'completed',
+            status='draft' if save_as_draft else 'in_progress',
             operator=payload['operator'],
             labor_cost=payload['labor_cost'],
             packaging_cost=payload['packaging_cost'],
@@ -651,18 +759,17 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
             total_cost=Decimal('0'),
             unit_cost=Decimal('0'),
         )
+        cost_divisor = actual_qty if actual_qty is not None else prod_qty
         self._apply_costs(
             mfg_log, raw_material_cost,
             payload['labor_cost'], payload['packaging_cost'], payload['other_overhead_cost'],
-            prod_qty,
+            cost_divisor,
         )
         mfg_log.save()
 
         if not save_as_draft:
-            self._execute_manufacturing_batch(
-                mfg_log, product, consumed_plan, prod_qty,
-                payload['batch_no'], payload['mfg_date'], payload['exp_date'],
-                mfg_log.unit_cost, payload['update_cost_price'],
+            self._start_manufacturing(
+                mfg_log, product, consumed_plan, prod_qty, actual_qty, payload['update_cost_price'],
             )
 
         return Response(ManufacturingLogSerializer(mfg_log).data, status=status.HTTP_201_CREATED)
@@ -693,6 +800,10 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
 
             product = payload['product']
             prod_qty = payload['prod_qty']
+            actual_qty, actual_err = self._parse_actual_quantity(data, prod_qty, required=False)
+            if actual_err:
+                return Response({'error': actual_err}, status=status.HTTP_400_BAD_REQUEST)
+
             instance.product = product
             instance.production_quantity = prod_qty
             instance.batch_number = payload['batch_no']
@@ -705,10 +816,11 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
                 product, prod_qty, check_stock=bool(finalize),
             )
             instance.recipe = recipe
+            cost_divisor = actual_qty if actual_qty is not None else prod_qty
             self._apply_costs(
                 instance, raw_material_cost,
                 payload['labor_cost'], payload['packaging_cost'], payload['other_overhead_cost'],
-                prod_qty,
+                cost_divisor,
             )
             instance.save()
 
@@ -723,12 +835,8 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
                         {'error': 'Insufficient raw material stock for production batch.', 'shortages': shortages},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-                instance.status = 'completed'
-                instance.save(update_fields=['status', 'updated_at'])
-                self._execute_manufacturing_batch(
-                    instance, product, consumed_plan, prod_qty,
-                    payload['batch_no'], payload['mfg_date'], payload['exp_date'],
-                    instance.unit_cost, payload['update_cost_price'],
+                self._start_manufacturing(
+                    instance, product, consumed_plan, prod_qty, actual_qty, payload['update_cost_price'],
                 )
 
             return Response(ManufacturingLogSerializer(instance).data)
@@ -754,10 +862,11 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
         if not str(instance.batch_number or '').strip():
             return Response({'error': 'Batch number is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        divisor = instance.actual_quantity or instance.production_quantity
         self._apply_costs(
             instance, instance.raw_material_cost,
             instance.labor_cost, instance.packaging_cost, instance.other_overhead_cost,
-            instance.production_quantity,
+            divisor,
         )
         instance.save()
 
@@ -809,6 +918,10 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
 
         product = payload['product']
         prod_qty = payload['prod_qty']
+        actual_qty, actual_err = self._parse_actual_quantity(request.data, prod_qty, required=False)
+        if actual_err:
+            return Response({'error': actual_err}, status=status.HTTP_400_BAD_REQUEST)
+
         recipe, consumed_plan, raw_material_cost, shortages = self._manufacturing_plan(product, prod_qty, check_stock=True)
 
         if not recipe or not recipe.items.exists():
@@ -830,19 +943,64 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
         instance.operator = payload['operator']
         instance.notes = payload['notes']
         instance.recipe = recipe
-        instance.status = 'completed'
+        cost_divisor = actual_qty if actual_qty is not None else prod_qty
         self._apply_costs(
             instance, raw_material_cost,
             payload['labor_cost'], payload['packaging_cost'], payload['other_overhead_cost'],
-            prod_qty,
+            cost_divisor,
         )
         instance.save()
 
-        self._execute_manufacturing_batch(
-            instance, product, consumed_plan, prod_qty,
-            payload['batch_no'], payload['mfg_date'], payload['exp_date'],
-            instance.unit_cost, payload['update_cost_price'],
+        self._start_manufacturing(
+            instance, product, consumed_plan, prod_qty, actual_qty, payload['update_cost_price'],
         )
+
+        return Response(ManufacturingLogSerializer(instance).data)
+
+    @action(detail=True, methods=['post'], url_path='record_output')
+    @transaction.atomic
+    def record_output(self, request, pk=None):
+        """Record or edit actual good units after production (RM already deducted for estimated)."""
+        instance = self.get_object()
+        if instance.status not in ('in_progress', 'completed'):
+            return Response(
+                {'error': 'Record actual output only for in-progress or completed batches.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        estimated = Decimal(str(instance.production_quantity or 0))
+        actual_qty, actual_err = self._parse_actual_quantity(request.data, estimated, required=True)
+        if actual_err:
+            return Response({'error': actual_err}, status=status.HTTP_400_BAD_REQUEST)
+
+        update_cost_price = request.data.get('update_product_cost_price', True)
+        product = instance.product
+        wastage = estimated - actual_qty
+        had_batch = ProductBatch.objects.filter(manufacturing=instance).exists()
+
+        self._apply_costs(
+            instance, instance.raw_material_cost,
+            instance.labor_cost, instance.packaging_cost, instance.other_overhead_cost,
+            actual_qty,
+        )
+        instance.actual_quantity = actual_qty
+        instance.wastage_quantity = wastage
+        instance.status = 'completed'
+        instance.save()
+
+        try:
+            if had_batch:
+                self._adjust_finished_output(
+                    instance, product, actual_qty, instance.unit_cost, update_cost_price,
+                )
+            else:
+                self._add_finished_output(
+                    instance, product, actual_qty,
+                    instance.batch_number, instance.mfg_date, instance.exp_date,
+                    instance.unit_cost, update_cost_price,
+                )
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(ManufacturingLogSerializer(instance).data)
 

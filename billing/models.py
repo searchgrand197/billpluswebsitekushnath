@@ -56,6 +56,12 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def mrp(self):
+        """GST-inclusive list / MRP (Product.price is tax-exclusive)."""
+        from .procurement import selling_breakdown
+        return selling_breakdown(self.price or 0, self.gst_rate or 0)[2]
+
     def save(self, *args, **kwargs):
         if self.type == 'rent' and not self.daily_rental_rate:
             self.daily_rental_rate = self.price * Decimal('0.05')
@@ -479,6 +485,11 @@ class InvoiceItem(models.Model):
             return Decimal('0')
         return ((self.discount or 0) * Decimal('100')) / gross
 
+    def line_mrp(self):
+        """GST-inclusive MRP for this line (from billed unit rate + GST)."""
+        from .procurement import selling_breakdown
+        return selling_breakdown(self.unit_price or 0, self.effective_gst_rate())[2]
+
     def __str__(self):
         return f"{self.invoice.invoice_number} - {self.product.name}"
 
@@ -731,7 +742,18 @@ class ManufacturingLog(models.Model):
     manufacturing_id = models.CharField(max_length=50, unique=True)
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     recipe = models.ForeignKey(Recipe, on_delete=models.SET_NULL, null=True, blank=True)
-    production_quantity = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    production_quantity = models.DecimalField(
+        max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))],
+        help_text='Estimated production quantity — used to scale and deduct raw materials',
+    )
+    actual_quantity = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Actual good units after production — finished stock is posted from this',
+    )
+    wastage_quantity = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='Estimated minus actual (wasted / failed units)',
+    )
     batch_number = models.CharField(max_length=100)
     mfg_date = models.DateField(default=timezone.localdate)
     exp_date = models.DateField(null=True, blank=True)

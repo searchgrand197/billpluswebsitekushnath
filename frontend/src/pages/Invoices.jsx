@@ -347,7 +347,7 @@ export default function Invoices() {
             <form onSubmit={handleAddPayment}>
               <div style={{ display: 'grid', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569' }}>Amount (₹)</label>
+                  <label className="form-field-label">Amount (₹)</label>
                   <input
                     type="number"
                     min="0.01"
@@ -362,7 +362,7 @@ export default function Invoices() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569' }}>Payment Date</label>
+                    <label className="form-field-label">Payment Date</label>
                     <input
                       type="date"
                       required
@@ -372,7 +372,7 @@ export default function Invoices() {
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569' }}>Method</label>
+                    <label className="form-field-label">Method</label>
                     <select
                       className="form-control-smart"
                       value={paymentMethod}
@@ -387,7 +387,7 @@ export default function Invoices() {
                   </div>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569' }}>Note</label>
+                  <label className="form-field-label">Note</label>
                   <input
                     type="text"
                     className="form-control-smart"
@@ -397,7 +397,7 @@ export default function Invoices() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569' }}>Reference # (optional)</label>
+                  <label className="form-field-label">Reference # (optional)</label>
                   <input
                     type="text"
                     className="form-control-smart"

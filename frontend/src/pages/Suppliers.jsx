@@ -92,14 +92,33 @@ export default function Suppliers() {
           <div className="modal-content-smart" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontWeight: 800, marginBottom: 12 }}>{editing ? 'Edit supplier' : 'Add supplier'}</h3>
             <form onSubmit={save}>
-              {['name', 'gstin', 'phone', 'email', 'state', 'address', 'contact_person'].map((k) => (
-                <input key={k} className="form-control-smart" style={{ marginBottom: 8 }} placeholder={k.replace('_', ' ')} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} required={k === 'name'} />
+              {[
+                { key: 'name', label: 'Supplier name *' },
+                { key: 'gstin', label: 'GSTIN' },
+                { key: 'phone', label: 'Phone' },
+                { key: 'email', label: 'Email' },
+                { key: 'state', label: 'State' },
+                { key: 'address', label: 'Address' },
+                { key: 'contact_person', label: 'Contact person' },
+              ].map(({ key, label }) => (
+                <div key={key} className="form-field">
+                  <label className="form-field-label">{label}</label>
+                  <input
+                    className="form-control-smart"
+                    value={form[key]}
+                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                    required={key === 'name'}
+                  />
+                </div>
               ))}
-              <select className="form-control-smart" style={{ marginBottom: 12 }} value={form.gst_type} onChange={(e) => setForm({ ...form, gst_type: e.target.value })}>
-                <option value="registered">Registered</option>
-                <option value="unregistered">Unregistered</option>
-                <option value="composition">Composition</option>
-              </select>
+              <div className="form-field">
+                <label className="form-field-label">GST registration type</label>
+                <select className="form-control-smart" value={form.gst_type} onChange={(e) => setForm({ ...form, gst_type: e.target.value })}>
+                  <option value="registered">Registered</option>
+                  <option value="unregistered">Unregistered</option>
+                  <option value="composition">Composition</option>
+                </select>
+              </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button type="button" className="btn-smart btn-outline-smart" onClick={() => setOpen(false)}>Cancel</button>
                 <button type="submit" className="btn-smart btn-primary-smart" style={{ backgroundColor: '#059669' }}>Save</button>

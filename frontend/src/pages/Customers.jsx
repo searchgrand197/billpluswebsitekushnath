@@ -476,7 +476,8 @@ export default function Customers() {
                   <button type="button" className="btn-smart btn-outline-smart" style={{ padding: '4px 8px' }} onClick={() => setPayAmount(String((due / 2).toFixed(2)))}>Half Amount</button>
                   <button type="button" className="btn-smart btn-outline-smart" style={{ padding: '4px 8px' }} onClick={() => { setPayAmount(''); setPayDiscount(''); }}>Clear</button>
                 </div>
-                <textarea className="form-control-smart" rows={2} placeholder="Note" value={payNote} onChange={(e) => setPayNote(e.target.value)} />
+                <label className="pos-field-label">Note</label>
+                <textarea className="form-control-smart" rows={2} value={payNote} onChange={(e) => setPayNote(e.target.value)} />
                 <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800 }}>NEW BALANCE: <span style={{ color: '#EA580C' }}>{money(newBalance)}</span></div>
                 <button disabled={savingPay || due <= 0} className="btn-smart btn-primary-smart" style={{ width: '100%', marginTop: 12, backgroundColor: '#059669' }} onClick={recordPayment}>
                   Record Payment

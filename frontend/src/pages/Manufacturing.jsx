@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { getProducts, getRawMaterials, getRecipes, saveRecipe, getManufacturingLogs, createManufacturingLog, updateManufacturingLog, finalizeManufacturingLog, deleteManufacturingLog, updateRawMaterial } from '../api';
-import { Factory, Plus, Search, AlertTriangle, CheckCircle2, FlaskConical, BookOpen, Layers, ArrowRight, Calculator, DollarSign, Eye, X, Trash2, Pencil, Save, Play } from 'lucide-react';
+import { getProducts, getRawMaterials, getRecipes, saveRecipe, getManufacturingLogs, createManufacturingLog, updateManufacturingLog, finalizeManufacturingLog, recordManufacturingOutput, deleteManufacturingLog, updateRawMaterial } from '../api';
+import { Factory, Plus, Search, AlertTriangle, CheckCircle2, FlaskConical, BookOpen, Layers, ArrowRight, Calculator, DollarSign, Eye, X, Trash2, Pencil, Save, Play, PackageCheck } from 'lucide-react';
 import { useToast } from '../components/ToastContext';
 import { getInputUnitOptions, convertQty, formatQty, formatQtyDisplay } from '../unitUtils';
 
@@ -26,7 +26,7 @@ const MFG_STATUS = {
 };
 
 export default function Manufacturing() {
-  const [activeTab, setActiveTab] = useState('produce'); // 'produce', 'recipes', 'history'
+  const [activeTab, setActiveTab] = useState('history'); // history → produce → recipes
   const [products, setProducts] = useState([]);
   const [rawMaterials, setRawMaterials] = useState([]);
   const [recipes, setRecipes] = useState([]);
@@ -36,6 +36,7 @@ export default function Manufacturing() {
   // Production Form State
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productionQty, setProductionQty] = useState('10');
+  const [actualQtyOptional, setActualQtyOptional] = useState('');
   const [batchNumber, setBatchNumber] = useState(`BATCH-${Math.floor(1000 + Math.random() * 9000)}`);
   const [mfgDate, setMfgDate] = useState(new Date().toISOString().split('T')[0]);
   const [expDate, setExpDate] = useState('');
@@ -59,6 +60,11 @@ export default function Manufacturing() {
   const [editingLog, setEditingLog] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Record / edit actual output
+  const [outputModalLog, setOutputModalLog] = useState(null);
+  const [outputActual, setOutputActual] = useState('');
+  const [savingOutput, setSavingOutput] = useState(false);
 
   // Recipe Builder Form State
   const [recipeProdId, setRecipeProdId] = useState('');
@@ -126,34 +132,48 @@ export default function Manufacturing() {
 
   const totalOverheads = (Number(laborCost) || 0) + (Number(packagingCost) || 0) + (Number(otherOverheadCost) || 0);
   const totalBatchCost = estimatedRawMaterialCost + totalOverheads;
-  const calculatedUnitCost = Number(productionQty) > 0 ? totalBatchCost / Number(productionQty) : 0;
+  const unitCostDivisor = Number(actualQtyOptional) > 0 ? Number(actualQtyOptional) : Number(productionQty);
+  const calculatedUnitCost = unitCostDivisor > 0 ? totalBatchCost / unitCostDivisor : 0;
+  const previewWastage =
+    Number(actualQtyOptional) > 0 && Number(productionQty) > 0
+      ? Math.max(0, Number(productionQty) - Number(actualQtyOptional))
+      : null;
 
   const hasShortages = calculatedRequirements.some((r) => r.isShortage);
   const draftCount = logs.filter((l) => l.status === 'draft').length;
+  const inProgressCount = logs.filter((l) => l.status === 'in_progress').length;
   const filteredLogs = logs.filter((log) => {
     if (historyFilter === 'draft') return log.status === 'draft';
+    if (historyFilter === 'in_progress') return log.status === 'in_progress';
     if (historyFilter === 'completed') return log.status === 'completed';
     return true;
   });
 
-  const buildPayload = () => ({
-    product: selectedProductId,
-    production_quantity: Number(productionQty),
-    batch_number: batchNumber,
-    mfg_date: mfgDate,
-    exp_date: expDate || null,
-    operator,
-    labor_cost: Number(laborCost) || 0,
-    packaging_cost: Number(packagingCost) || 0,
-    other_overhead_cost: Number(otherOverheadCost) || 0,
-    update_product_cost_price: updateProductCostPrice,
-    notes,
-  });
+  const buildPayload = () => {
+    const payload = {
+      product: selectedProductId,
+      production_quantity: Number(productionQty),
+      batch_number: batchNumber,
+      mfg_date: mfgDate,
+      exp_date: expDate || null,
+      operator,
+      labor_cost: Number(laborCost) || 0,
+      packaging_cost: Number(packagingCost) || 0,
+      other_overhead_cost: Number(otherOverheadCost) || 0,
+      update_product_cost_price: updateProductCostPrice,
+      notes,
+    };
+    if (actualQtyOptional !== '' && Number(actualQtyOptional) > 0) {
+      payload.actual_quantity = Number(actualQtyOptional);
+    }
+    return payload;
+  };
 
   const resetProduceForm = () => {
     setEditingDraftId(null);
     setSelectedProductId('');
     setProductionQty('10');
+    setActualQtyOptional('');
     setBatchNumber(`BATCH-${Math.floor(1000 + Math.random() * 9000)}`);
     setMfgDate(new Date().toISOString().split('T')[0]);
     setExpDate('');
@@ -170,6 +190,7 @@ export default function Manufacturing() {
     setEditingDraftId(log.id);
     setSelectedProductId(String(log.product));
     setProductionQty(String(log.production_quantity));
+    setActualQtyOptional(log.actual_quantity != null ? String(log.actual_quantity) : '');
     setBatchNumber(log.batch_number || '');
     setMfgDate(log.mfg_date || new Date().toISOString().split('T')[0]);
     setExpDate(log.exp_date || '');
@@ -282,12 +303,12 @@ export default function Manufacturing() {
       + (Number(editForm.packaging_cost) || 0)
       + (Number(editForm.other_overhead_cost) || 0)
     : 0;
-  const editUnitCost = editingLog && Number(editingLog.production_quantity) > 0
-    ? editTotalCost / Number(editingLog.production_quantity)
+  const editUnitCost = editingLog && Number(editingLog.actual_quantity || editingLog.production_quantity) > 0
+    ? editTotalCost / Number(editingLog.actual_quantity || editingLog.production_quantity)
     : 0;
 
   const handleFinalizeFromHistory = (log) => {
-    if (!window.confirm(`Manufacture draft batch ${log.batch_number}? Raw materials will be consumed and finished stock will be updated.`)) return;
+    if (!window.confirm(`Start manufacturing draft ${log.batch_number}? Raw materials will be deducted for the estimated quantity. Finished stock posts after you record actual output.`)) return;
     setSubmitting(true);
     finalizeManufacturingLog(log.id, {
       product: log.product,
@@ -302,13 +323,58 @@ export default function Manufacturing() {
       other_overhead_cost: log.other_overhead_cost,
       update_product_cost_price: true,
     })
-      .then(() => {
-        toast.showSuccess(`Batch ${log.batch_number} manufactured successfully.`);
+      .then((res) => {
+        const status = res.data?.status;
+        toast.showSuccess(
+          status === 'completed'
+            ? `Batch ${log.batch_number} completed.`
+            : `Batch ${log.batch_number} started. Record actual output when production finishes.`
+        );
         if (editingDraftId === log.id) resetProduceForm();
         fetchInitialData();
+        if (status === 'in_progress') {
+          setActiveTab('history');
+          setHistoryFilter('in_progress');
+        }
       })
       .catch((err) => handleApiError(err, 'Failed to manufacture draft.'))
       .finally(() => setSubmitting(false));
+  };
+
+  const openOutputModal = (log) => {
+    setOutputModalLog(log);
+    setOutputActual(log.actual_quantity != null ? String(log.actual_quantity) : '');
+  };
+
+  const handleRecordOutput = (e) => {
+    e.preventDefault();
+    if (!outputModalLog) return;
+    const estimated = Number(outputModalLog.production_quantity);
+    const actual = Number(outputActual);
+    if (!actual || actual <= 0) {
+      toast.showWarning('Enter actual good units after production.');
+      return;
+    }
+    if (actual > estimated) {
+      toast.showWarning(`Actual cannot exceed estimated (${estimated}).`);
+      return;
+    }
+    setSavingOutput(true);
+    recordManufacturingOutput(outputModalLog.id, {
+      actual_quantity: actual,
+      update_product_cost_price: true,
+    })
+      .then(() => {
+        const waste = estimated - actual;
+        toast.showSuccess(
+          `Recorded ${actual} good units` + (waste > 0 ? ` · wastage ${waste}` : '') + `. Finished stock updated.`
+        );
+        setOutputModalLog(null);
+        setSelectedLogDetails(null);
+        fetchInitialData();
+      })
+      .catch((err) => toast.showError(err.response?.data?.error || 'Failed to record actual output.'))
+      .finally(() => setSavingOutput(false));
   };
 
   const handleExecuteProduction = (e) => {
@@ -322,6 +388,10 @@ export default function Manufacturing() {
       toast.showError(`No Bill of Materials (Recipe) defined for ${selectedProduct?.name}. Define a recipe first.`);
       return;
     }
+    if (actualQtyOptional !== '' && Number(actualQtyOptional) > Number(productionQty)) {
+      toast.showError('Actual quantity cannot exceed estimated quantity.');
+      return;
+    }
 
     setSubmitting(true);
     const payload = buildPayload();
@@ -329,11 +399,21 @@ export default function Manufacturing() {
       ? finalizeManufacturingLog(editingDraftId, payload)
       : createManufacturingLog(payload);
     req
-      .then(() => {
-        toast.showSuccess(`Manufactured ${productionQty} units of ${selectedProduct.name}! Unit Cost: ₹${calculatedUnitCost.toFixed(2)}.`);
+      .then((res) => {
+        const status = res.data?.status;
+        if (status === 'completed') {
+          toast.showSuccess(
+            `Manufactured ${res.data.actual_quantity} good units of ${selectedProduct.name} (est. ${productionQty}). Unit Cost: ₹${Number(res.data.unit_cost || calculatedUnitCost).toFixed(2)}.`
+          );
+        } else {
+          toast.showSuccess(
+            `Batch started for ${productionQty} estimated units of ${selectedProduct.name}. Raw materials deducted — record actual output when production finishes.`
+          );
+        }
         resetProduceForm();
         fetchInitialData();
         setActiveTab('history');
+        if (status === 'in_progress') setHistoryFilter('in_progress');
       })
       .catch((err) => {
         handleApiError(err, 'Failed to complete manufacturing batch.');
@@ -499,49 +579,344 @@ export default function Manufacturing() {
     return <div style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>Loading Manufacturing Unit...</div>;
   }
 
+  const completedCount = logs.filter((l) => l.status === 'completed').length;
+  const tabDefs = [
+    {
+      key: 'history',
+      step: '1',
+      label: 'Batch History & Cost Valuation',
+      short: 'Batch List',
+      icon: Layers,
+      hint: 'View batches, costs, record actual output',
+      count: logs.length,
+    },
+    {
+      key: 'produce',
+      step: '2',
+      label: 'Create Production Batch',
+      short: 'New Batch',
+      icon: Factory,
+      hint: 'Estimate qty, deduct RM, start production',
+      count: null,
+    },
+    {
+      key: 'recipes',
+      step: '3',
+      label: 'Recipe / BOM Manager',
+      short: 'Recipes',
+      icon: FlaskConical,
+      hint: 'Bill of materials for each product',
+      count: recipes.length,
+    },
+  ];
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0F172A' }}>Ayurvedic Manufacturing & Costing</h1>
-          <p style={{ fontSize: '0.85rem', color: '#64748B' }}>
-            Batch production execution, Raw Material consumption, Overhead & Labor Costing, and finished product unit cost valuation.
-          </p>
+      {/* Page header — title always clear */}
+      <div
+        style={{
+          marginBottom: '20px',
+          padding: '20px 22px',
+          borderRadius: '14px',
+          background: 'linear-gradient(135deg, #ECFDF5 0%, #F0FDFA 45%, #F8FAFC 100%)',
+          border: '1px solid #A7F3D0',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: '0.7rem', fontWeight: '800', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#047857', marginBottom: '6px' }}>
+              Manufacturing
+            </div>
+            <h1 style={{ fontSize: '1.65rem', fontWeight: '900', color: '#0F172A', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              Batch History, Production & Costing
+            </h1>
+            <p style={{ fontSize: '0.9rem', color: '#475569', margin: '8px 0 0', maxWidth: '560px', lineHeight: 1.45 }}>
+              Review past batches and costs first, then create a new batch, or manage recipes (BOM).
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-smart btn-primary-smart"
+            style={{ backgroundColor: '#059669', height: '42px', padding: '0 18px', fontWeight: '700' }}
+            onClick={() => { resetProduceForm(); setActiveTab('produce'); }}
+          >
+            <Plus size={18} /> New Batch
+          </button>
+        </div>
+
+        {/* Flow summary chips */}
+        <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+          {[
+            { label: 'All batches', value: logs.length, color: '#0F172A' },
+            { label: 'Awaiting actual', value: inProgressCount, color: '#1D4ED8' },
+            { label: 'Drafts', value: draftCount, color: '#475569' },
+            { label: 'Completed', value: completedCount, color: '#047857' },
+          ].map((s) => (
+            <div
+              key={s.label}
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: '10px',
+                padding: '8px 14px',
+                minWidth: '110px',
+              }}
+            >
+              <div style={{ fontSize: '0.68rem', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase' }}>{s.label}</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: s.color }}>{s.value}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #E2E8F0', marginBottom: '24px' }}>
-        <button
-          onClick={() => setActiveTab('produce')}
-          className={`btn-smart ${activeTab === 'produce' ? 'btn-primary-smart' : 'btn-outline-smart'}`}
-          style={{ backgroundColor: activeTab === 'produce' ? '#059669' : undefined, borderRadius: '8px 8px 0 0' }}
-        >
-          <Factory size={16} /> Execute Batch & Costing
-        </button>
-        <button
-          onClick={() => setActiveTab('recipes')}
-          className={`btn-smart ${activeTab === 'recipes' ? 'btn-primary-smart' : 'btn-outline-smart'}`}
-          style={{ backgroundColor: activeTab === 'recipes' ? '#059669' : undefined, borderRadius: '8px 8px 0 0' }}
-        >
-          <FlaskConical size={16} /> Recipe / BOM Manager
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`btn-smart ${activeTab === 'history' ? 'btn-primary-smart' : 'btn-outline-smart'}`}
-          style={{ backgroundColor: activeTab === 'history' ? '#059669' : undefined, borderRadius: '8px 8px 0 0' }}
-        >
-          <Layers size={16} /> Batch History & Cost Valuation
-        </button>
+      {/* Numbered flow tabs — History first */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: '10px',
+          marginBottom: '22px',
+        }}
+      >
+        {tabDefs.map((tab) => {
+          const Icon = tab.icon;
+          const on = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                textAlign: 'left',
+                cursor: 'pointer',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                border: on ? '2px solid #059669' : '1px solid #E2E8F0',
+                background: on ? '#ECFDF5' : '#FFFFFF',
+                boxShadow: on ? '0 4px 14px rgba(5, 150, 105, 0.12)' : 'none',
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <span
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.8rem',
+                    fontWeight: '900',
+                    background: on ? '#059669' : '#F1F5F9',
+                    color: on ? '#FFFFFF' : '#64748B',
+                    flexShrink: 0,
+                  }}
+                >
+                  {tab.step}
+                </span>
+                <Icon size={18} color={on ? '#059669' : '#64748B'} />
+                {tab.count != null && (
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      fontSize: '0.75rem',
+                      fontWeight: '800',
+                      color: on ? '#047857' : '#64748B',
+                      background: on ? '#D1FAE5' : '#F1F5F9',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                    }}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.95rem', fontWeight: '800', color: on ? '#064E3B' : '#0F172A', lineHeight: 1.25 }}>
+                {tab.label}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px', lineHeight: 1.35 }}>{tab.hint}</div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tab 1: Execute Production & Costing */}
+      {/* Tab 1: Batch History (default / first) */}
+      {activeTab === 'history' && (
+        <div className="smart-card" style={{ overflow: 'hidden' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '12px',
+              flexWrap: 'wrap',
+              padding: '18px 20px',
+              borderBottom: '1px solid #E2E8F0',
+              background: '#F8FAFC',
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '900', color: '#0F172A' }}>
+                Batch History & Cost Valuation
+              </h2>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#64748B' }}>
+                List of all production batches — estimated vs actual, wastage, and unit cost.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'draft', label: `Drafts (${draftCount})` },
+                { key: 'in_progress', label: `Awaiting (${inProgressCount})` },
+                { key: 'completed', label: 'Completed' },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setHistoryFilter(f.key)}
+                  className={`btn-smart ${historyFilter === f.key ? 'btn-primary-smart' : 'btn-outline-smart'}`}
+                  style={{
+                    backgroundColor: historyFilter === f.key ? '#059669' : undefined,
+                    fontSize: '0.78rem',
+                    padding: '6px 12px',
+                    fontWeight: '700',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+          <table className="smart-table">
+            <thead>
+              <tr>
+                <th>Mfg ID</th>
+                <th>Status</th>
+                <th>Finished Product</th>
+                <th>Batch Number</th>
+                <th>Estimated</th>
+                <th>Actual</th>
+                <th>Wastage</th>
+                <th>Remaining</th>
+                <th>RM Cost</th>
+                <th>Total Cost</th>
+                <th>Unit Cost</th>
+                <th>Mfg Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLogs.map((log) => {
+                const st = MFG_STATUS[log.status] || MFG_STATUS.draft;
+                const isDraft = log.status === 'draft';
+                const isInProgress = log.status === 'in_progress';
+                const isCompleted = log.status === 'completed';
+                const unitDiv = Number(log.actual_quantity || log.production_quantity || 1);
+                return (
+                  <tr key={log.id}>
+                    <td style={{ fontWeight: '700', color: '#059669' }}>{log.manufacturing_id}</td>
+                    <td>
+                      <span className="badge-smart" style={{ backgroundColor: st.bg, color: st.color }}>{st.label}</span>
+                    </td>
+                    <td style={{ fontWeight: '700', color: '#0F172A' }}>{log.product_name}</td>
+                    <td><span className="badge-smart" style={{ backgroundColor: '#ECFDF5', color: '#047857' }}>{log.batch_number}</span></td>
+                    <td style={{ fontWeight: '800' }}>{Number(log.production_quantity).toFixed(2)}</td>
+                    <td style={{ fontWeight: '800', color: log.actual_quantity != null ? '#047857' : '#94A3B8' }}>
+                      {log.actual_quantity != null ? Number(log.actual_quantity).toFixed(2) : '—'}
+                    </td>
+                    <td style={{ fontWeight: '700', color: Number(log.wastage_quantity || 0) > 0 ? '#B45309' : '#94A3B8' }}>
+                      {log.actual_quantity != null ? Number(log.wastage_quantity || 0).toFixed(2) : '—'}
+                    </td>
+                    <td style={{ fontWeight: '800', color: Number(log.remaining_quantity || 0) > 0 ? '#047857' : '#94A3B8' }}>
+                      {log.remaining_quantity == null ? '—' : `${Number(log.remaining_quantity).toFixed(2)} left`}
+                    </td>
+                    <td style={{ color: '#475569' }}>₹{Number(log.raw_material_cost || 0).toFixed(2)}</td>
+                    <td style={{ fontWeight: '800', color: '#0F172A' }}>₹{Number(log.total_cost).toFixed(2)}</td>
+                    <td style={{ fontWeight: '800', color: '#059669' }}>₹{Number(log.unit_cost || (Number(log.total_cost) / unitDiv)).toFixed(2)}</td>
+                    <td style={{ fontSize: '0.8rem', color: '#64748B' }}>{log.mfg_date}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {isDraft ? (
+                          <>
+                            <button
+                              onClick={() => loadDraftIntoForm(log)}
+                              className="btn-smart btn-outline-smart"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#059669', borderColor: '#059669' }}
+                            >
+                              <Pencil size={14} /> Continue
+                            </button>
+                            <button
+                              onClick={() => handleFinalizeFromHistory(log)}
+                              className="btn-smart btn-primary-smart"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#059669' }}
+                            >
+                              <Play size={14} /> Manufacture
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDraft(log)}
+                              className="btn-smart btn-outline-smart"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#DC2626', borderColor: '#FCA5A5' }}
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {(isInProgress || isCompleted) && (
+                              <button
+                                onClick={() => openOutputModal(log)}
+                                className="btn-smart btn-primary-smart"
+                                style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: isInProgress ? '#D97706' : '#059669' }}
+                              >
+                                <PackageCheck size={14} /> {isInProgress ? 'Record actual' : 'Edit actual'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setSelectedLogDetails(log)}
+                              className="btn-smart btn-outline-smart"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Eye size={14} /> View
+                            </button>
+                            <button
+                              onClick={() => openEditBatch(log)}
+                              className="btn-smart btn-outline-smart"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#059669', borderColor: '#059669' }}
+                            >
+                              <Pencil size={14} /> Edit
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredLogs.length === 0 && (
+                <tr>
+                  <td colSpan="13" style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>
+                    {historyFilter === 'draft' ? 'No draft batches saved yet.' : historyFilter === 'in_progress' ? 'No batches awaiting actual output.' : 'No manufacturing batches logged yet.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Create Production Batch */}
       {activeTab === 'produce' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
           <div className="smart-card" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '16px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: '900', marginBottom: '6px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Factory size={20} color="#059669" /> {editingDraftId ? 'Edit Draft Batch' : 'Create Production Batch'}
             </h2>
+            <p style={{ fontSize: '0.8rem', color: '#64748B', marginBottom: '16px' }}>
+              Enter estimated quantity to deduct raw materials. Record actual output after production finishes.
+            </p>
             {editingDraftId && (
               <div style={{ marginBottom: '16px', padding: '12px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ fontSize: '0.85rem', color: '#92400E' }}>
@@ -592,7 +967,7 @@ export default function Manufacturing() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                 <div>
-                  <label className="pos-field-label">PRODUCTION QUANTITY (UNITS) *</label>
+                  <label className="pos-field-label">ESTIMATED QUANTITY (UNITS) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -602,6 +977,9 @@ export default function Manufacturing() {
                     value={productionQty}
                     onChange={(e) => setProductionQty(e.target.value)}
                   />
+                  <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '4px' }}>
+                    Raw materials are deducted for this estimate.
+                  </div>
                 </div>
                 <div>
                   <label className="pos-field-label">BATCH NUMBER *</label>
@@ -612,6 +990,23 @@ export default function Manufacturing() {
                     value={batchNumber}
                     onChange={(e) => setBatchNumber(e.target.value)}
                   />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label className="pos-field-label">ACTUAL AFTER PRODUCTION (OPTIONAL)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className="form-control-smart"
+                  value={actualQtyOptional}
+                  onChange={(e) => setActualQtyOptional(e.target.value)}
+                  placeholder="Leave blank — record later when production finishes"
+                />
+                <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '4px' }}>
+                  Finished stock posts from actual only. Wastage = estimated − actual
+                  {previewWastage != null ? ` → ${previewWastage}` : ''}.
                 </div>
               </div>
 
@@ -637,13 +1032,24 @@ export default function Manufacturing() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
                 <label className="pos-field-label">OPERATOR / SUPERVISOR</label>
                 <input
                   type="text"
                   className="form-control-smart"
                   value={operator}
                   onChange={(e) => setOperator(e.target.value)}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label className="pos-field-label">BATCH NOTES (OPTIONAL)</label>
+                <textarea
+                  className="form-control-smart"
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any production remarks…"
                 />
               </div>
 
@@ -655,9 +1061,7 @@ export default function Manufacturing() {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748B', display: 'block', marginBottom: '4px' }}>
-                      LABOR & WAGES (₹)
-                    </label>
+                    <label className="pos-field-label">LABOR & WAGES (₹)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -669,9 +1073,7 @@ export default function Manufacturing() {
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748B', display: 'block', marginBottom: '4px' }}>
-                      PACKAGING / BOTTLES (₹)
-                    </label>
+                    <label className="pos-field-label">PACKAGING / BOTTLES (₹)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -683,9 +1085,7 @@ export default function Manufacturing() {
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748B', display: 'block', marginBottom: '4px' }}>
-                      ELECTRICITY / OVERHEADS (₹)
-                    </label>
+                    <label className="pos-field-label">ELECTRICITY / OVERHEADS (₹)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -774,11 +1174,16 @@ export default function Manufacturing() {
                   <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#10B981' }}>₹{totalBatchCost.toFixed(2)}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>CALCULATED UNIT COST</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                    UNIT COST {Number(actualQtyOptional) > 0 ? '(on actual)' : '(est. until actual)'}
+                  </div>
                   <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#F43F5E', backgroundColor: 'rgba(244, 63, 94, 0.15)', padding: '4px 10px', borderRadius: '6px' }}>
                     ₹{calculatedUnitCost.toFixed(2)} <span style={{ fontSize: '0.7rem' }}>/ unit</span>
                   </div>
                 </div>
+              </div>
+              <div style={{ marginTop: '12px', fontSize: '0.72rem', color: '#94A3B8', lineHeight: 1.4 }}>
+                RM scale uses estimated qty. Finished stock is posted only when actual output is recorded.
               </div>
             </div>
 
@@ -800,7 +1205,8 @@ export default function Manufacturing() {
               ) : (
                 <div>
                   <div style={{ fontSize: '0.8rem', color: '#64748B', marginBottom: '12px' }}>
-                    Recipe Yield: <strong>{currentRecipe.yield_quantity} units</strong> · Target Batch: <strong>{productionQty} units</strong>
+                    Recipe Yield: <strong>{currentRecipe.yield_quantity} units</strong> · Estimated Batch: <strong>{productionQty} units</strong>
+                    {Number(actualQtyOptional) > 0 && <> · Actual: <strong>{actualQtyOptional}</strong></>}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -868,13 +1274,16 @@ export default function Manufacturing() {
         </div>
       )}
 
-      {/* Tab 2: Recipe / BOM Manager */}
+      {/* Tab 3: Recipe / BOM Manager */}
       {activeTab === 'recipes' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 0.9fr', gap: '24px', alignItems: 'start' }}>
           <div className="smart-card" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '16px', color: '#0F172A' }}>
-              Bill of Materials (Recipe Builder)
+            <h2 style={{ fontSize: '1.15rem', fontWeight: '900', marginBottom: '6px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FlaskConical size={20} color="#059669" /> Recipe / BOM Manager
             </h2>
+            <p style={{ fontSize: '0.8rem', color: '#64748B', marginBottom: '16px' }}>
+              Define raw materials and yield for each finished product before manufacturing.
+            </p>
             <form onSubmit={handleSaveRecipeSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px', marginBottom: '20px' }}>
                 <div>
@@ -1086,126 +1495,6 @@ export default function Manufacturing() {
         </div>
       )}
 
-      {/* Tab 3: History & Cost Valuation */}
-      {activeTab === 'history' && (
-        <div className="smart-card">
-          <div style={{ display: 'flex', gap: '8px', padding: '16px 16px 0', flexWrap: 'wrap' }}>
-            {[
-              { key: 'all', label: 'All batches' },
-              { key: 'draft', label: `Drafts (${draftCount})` },
-              { key: 'completed', label: 'Completed' },
-            ].map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setHistoryFilter(f.key)}
-                className={`btn-smart ${historyFilter === f.key ? 'btn-primary-smart' : 'btn-outline-smart'}`}
-                style={{ backgroundColor: historyFilter === f.key ? '#059669' : undefined, fontSize: '0.8rem', padding: '6px 12px' }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <table className="smart-table">
-            <thead>
-              <tr>
-                <th>Mfg ID</th>
-                <th>Status</th>
-                <th>Finished Product</th>
-                <th>Batch Number</th>
-                <th>Produced</th>
-                <th>Remaining</th>
-                <th>RM Cost</th>
-                <th>Overheads</th>
-                <th>Total Batch Cost</th>
-                <th>Unit Cost</th>
-                <th>Mfg Date</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.map((log) => {
-                const totalOverhead = Number(log.labor_cost || 0) + Number(log.packaging_cost || 0) + Number(log.other_overhead_cost || 0);
-                const st = MFG_STATUS[log.status] || MFG_STATUS.draft;
-                const isDraft = log.status === 'draft';
-                return (
-                  <tr key={log.id}>
-                    <td style={{ fontWeight: '700', color: '#059669' }}>{log.manufacturing_id}</td>
-                    <td>
-                      <span className="badge-smart" style={{ backgroundColor: st.bg, color: st.color }}>{st.label}</span>
-                    </td>
-                    <td style={{ fontWeight: '700', color: '#0F172A' }}>{log.product_name}</td>
-                    <td><span className="badge-smart" style={{ backgroundColor: '#ECFDF5', color: '#047857' }}>{log.batch_number}</span></td>
-                    <td style={{ fontWeight: '800' }}>{Number(log.production_quantity).toFixed(2)} units</td>
-                    <td style={{ fontWeight: '800', color: Number(log.remaining_quantity || 0) > 0 ? '#047857' : '#94A3B8' }}>
-                      {log.remaining_quantity == null ? '—' : `${Number(log.remaining_quantity).toFixed(2)} left`}
-                    </td>
-                    <td style={{ color: '#475569' }}>₹{Number(log.raw_material_cost || 0).toFixed(2)}</td>
-                    <td style={{ color: '#D97706' }}>₹{totalOverhead.toFixed(2)}</td>
-                    <td style={{ fontWeight: '800', color: '#0F172A' }}>₹{Number(log.total_cost).toFixed(2)}</td>
-                    <td style={{ fontWeight: '800', color: '#059669' }}>₹{Number(log.unit_cost || (Number(log.total_cost) / (Number(log.production_quantity) || 1))).toFixed(2)}</td>
-                    <td style={{ fontSize: '0.8rem', color: '#64748B' }}>{log.mfg_date}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {isDraft ? (
-                          <>
-                            <button
-                              onClick={() => loadDraftIntoForm(log)}
-                              className="btn-smart btn-outline-smart"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#059669', borderColor: '#059669' }}
-                            >
-                              <Pencil size={14} /> Continue
-                            </button>
-                            <button
-                              onClick={() => handleFinalizeFromHistory(log)}
-                              className="btn-smart btn-primary-smart"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#059669' }}
-                            >
-                              <Play size={14} /> Manufacture
-                            </button>
-                            <button
-                              onClick={() => handleDeleteDraft(log)}
-                              className="btn-smart btn-outline-smart"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#DC2626', borderColor: '#FCA5A5' }}
-                            >
-                              <Trash2 size={14} /> Delete
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => setSelectedLogDetails(log)}
-                              className="btn-smart btn-outline-smart"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              <Eye size={14} /> View
-                            </button>
-                            <button
-                              onClick={() => openEditBatch(log)}
-                              className="btn-smart btn-outline-smart"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#059669', borderColor: '#059669' }}
-                            >
-                              <Pencil size={14} /> Edit
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredLogs.length === 0 && (
-                <tr>
-                  <td colSpan="12" style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>
-                    {historyFilter === 'draft' ? 'No draft batches saved yet.' : 'No manufacturing batches logged yet.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {/* Batch Details Modal */}
       {selectedLogDetails && (
         <div style={{
@@ -1227,7 +1516,17 @@ export default function Manufacturing() {
                 <X size={20} />
               </button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', gap: '8px' }}>
+              {(selectedLogDetails.status === 'in_progress' || selectedLogDetails.status === 'completed') && (
+                <button
+                  type="button"
+                  onClick={() => openOutputModal(selectedLogDetails)}
+                  className="btn-smart btn-primary-smart"
+                  style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: selectedLogDetails.status === 'in_progress' ? '#D97706' : '#059669' }}
+                >
+                  <PackageCheck size={14} /> {selectedLogDetails.status === 'in_progress' ? 'Record actual' : 'Edit actual'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => openEditBatch(selectedLogDetails)}
@@ -1241,8 +1540,16 @@ export default function Manufacturing() {
             {/* Summary Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px' }}>
               <div style={{ padding: '12px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Production Output</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0F172A' }}>{selectedLogDetails.production_quantity} units</div>
+                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Estimated / Actual / Wastage</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#0F172A' }}>
+                  {selectedLogDetails.production_quantity}
+                  {' / '}
+                  {selectedLogDetails.actual_quantity != null ? selectedLogDetails.actual_quantity : '—'}
+                  {' / '}
+                  <span style={{ color: '#B45309' }}>
+                    {selectedLogDetails.actual_quantity != null ? Number(selectedLogDetails.wastage_quantity || 0).toFixed(2) : '—'}
+                  </span>
+                </div>
                 {selectedLogDetails.remaining_quantity != null && (
                   <div style={{ fontSize: '0.75rem', color: '#047857', marginTop: '4px', fontWeight: '700' }}>
                     {Number(selectedLogDetails.remaining_quantity).toFixed(2)} still left in this batch
@@ -1386,6 +1693,76 @@ export default function Manufacturing() {
                 </button>
                 <button type="submit" className="btn-smart btn-primary-smart" style={{ backgroundColor: '#059669' }} disabled={savingEdit}>
                   {savingEdit ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {outputModalLog && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100,
+          }}
+          onClick={() => !savingOutput && setOutputModalLog(null)}
+        >
+          <div
+            className="smart-card"
+            style={{ width: '92%', maxWidth: '440px', padding: '24px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                  {outputModalLog.status === 'completed' ? 'Edit actual output' : 'Record actual output'}
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '4px 0 0' }}>
+                  {outputModalLog.product_name} · {outputModalLog.batch_number}
+                </p>
+              </div>
+              <button type="button" onClick={() => setOutputModalLog(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94A3B8' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', marginBottom: '16px', fontSize: '0.85rem', color: '#92400E' }}>
+              Estimated (RM already deducted): <strong>{Number(outputModalLog.production_quantity).toFixed(2)}</strong> units.
+              Finished stock will use the actual count you enter below.
+            </div>
+
+            <form onSubmit={handleRecordOutput}>
+              <div style={{ marginBottom: '12px' }}>
+                <label className="pos-field-label">Actual good units *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={Number(outputModalLog.production_quantity)}
+                  required
+                  className="form-control-smart"
+                  value={outputActual}
+                  onChange={(e) => setOutputActual(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div style={{ marginBottom: '18px', fontSize: '0.85rem', color: '#475569' }}>
+                Wastage:{' '}
+                <strong style={{ color: '#B45309' }}>
+                  {outputActual && Number(outputActual) > 0
+                    ? Math.max(0, Number(outputModalLog.production_quantity) - Number(outputActual)).toFixed(2)
+                    : '—'}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn-smart btn-secondary-smart" disabled={savingOutput} onClick={() => setOutputModalLog(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-smart btn-primary-smart" style={{ backgroundColor: '#D97706', borderColor: '#D97706' }} disabled={savingOutput}>
+                  {savingOutput ? 'Saving…' : 'Save actual output'}
                 </button>
               </div>
             </form>

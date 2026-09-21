@@ -542,17 +542,30 @@ p {
   box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
 }
 
+/* Form field titles — visible above every input by default */
 .pos-field-label {
+  display: block;
+  position: static;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #334155;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  background: none;
+  padding: 0;
+}
+
+/* Floating label only inside POS boxed fields */
+.pos-field-box > .pos-field-label {
   position: absolute;
   top: -8px;
   left: 10px;
+  z-index: 1;
+  margin-bottom: 0;
   background-color: #FFFFFF;
   padding: 0 6px;
-  font-size: 0.7rem;
-  font-weight: 800;
   color: var(--primary);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   border-radius: 4px;
 }
 
@@ -564,12 +577,13 @@ p {
 .form-field-label {
   display: block;
   font-size: 0.8rem;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 4px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
 }
 
-.pos-field-box.green-box .pos-field-label {
+.pos-field-box.green-box > .pos-field-label {
   background-color: #ECFDF5;
   color: #047857;
 }

@@ -358,12 +358,16 @@ class ManufacturingLogSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='product.name', read_only=True)
     consumed_items = ManufacturingItemLogSerializer(many=True, read_only=True)
     remaining_quantity = serializers.SerializerMethodField()
+    estimated_quantity = serializers.DecimalField(
+        source='production_quantity', max_digits=10, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = ManufacturingLog
         fields = [
             'id', 'manufacturing_id', 'product', 'product_name', 'recipe',
-            'production_quantity', 'batch_number', 'mfg_date', 'exp_date',
+            'production_quantity', 'estimated_quantity', 'actual_quantity', 'wastage_quantity',
+            'batch_number', 'mfg_date', 'exp_date',
             'status', 'operator', 'raw_material_cost', 'labor_cost', 'packaging_cost',
             'other_overhead_cost', 'total_cost', 'unit_cost', 'notes', 'consumed_items',
             'remaining_quantity', 'created_at'

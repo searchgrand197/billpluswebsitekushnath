@@ -260,11 +260,23 @@ export default function PurchaseOrderForm() {
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
-          <input className="form-control-smart" placeholder="Transporter" value={header.transporter} onChange={(e) => setHeader({ ...header, transporter: e.target.value })} />
-          <input className="form-control-smart" placeholder="Vehicle no." value={header.vehicle_number} onChange={(e) => setHeader({ ...header, vehicle_number: e.target.value })} />
-          <input className="form-control-smart" placeholder="LR number" value={header.lr_number} onChange={(e) => setHeader({ ...header, lr_number: e.target.value })} />
+          <div>
+            <label className="pos-field-label">Transporter</label>
+            <input className="form-control-smart" value={header.transporter} onChange={(e) => setHeader({ ...header, transporter: e.target.value })} />
+          </div>
+          <div>
+            <label className="pos-field-label">Vehicle no.</label>
+            <input className="form-control-smart" value={header.vehicle_number} onChange={(e) => setHeader({ ...header, vehicle_number: e.target.value })} />
+          </div>
+          <div>
+            <label className="pos-field-label">LR number</label>
+            <input className="form-control-smart" value={header.lr_number} onChange={(e) => setHeader({ ...header, lr_number: e.target.value })} />
+          </div>
         </div>
-        <textarea className="form-control-smart" style={{ marginTop: 12 }} rows={2} placeholder="Notes / delivery instructions" value={header.notes} onChange={(e) => setHeader({ ...header, notes: e.target.value })} />
+        <div style={{ marginTop: 12 }}>
+          <label className="pos-field-label">Notes / delivery instructions</label>
+          <textarea className="form-control-smart" rows={2} value={header.notes} onChange={(e) => setHeader({ ...header, notes: e.target.value })} />
+        </div>
       </div>
 
       <div className="smart-card" style={{ padding: 16, marginBottom: 16, overflowX: 'auto' }}>
@@ -321,15 +333,24 @@ export default function PurchaseOrderForm() {
         <div className="smart-card" style={{ padding: 16 }}>
           <strong>Additional charges</strong>
           {charges.map((ch, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr auto auto 32px', gap: 8, marginTop: 8 }}>
-              <input className="form-control-smart" placeholder="Freight / loading..." value={ch.name} onChange={(e) => { const n = [...charges]; n[i].name = e.target.value; setCharges(n); }} />
-              <input type="number" className="form-control-smart" placeholder="₹" value={ch.amount} onChange={(e) => { const n = [...charges]; n[i].amount = e.target.value; setCharges(n); }} />
-              <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr auto auto 32px', gap: 8, marginTop: 8, alignItems: 'end' }}>
+              <div>
+                <label className="pos-field-label">Charge name</label>
+                <input className="form-control-smart" value={ch.name} onChange={(e) => { const n = [...charges]; n[i].name = e.target.value; setCharges(n); }} />
+              </div>
+              <div>
+                <label className="pos-field-label">Amount (₹)</label>
+                <input type="number" className="form-control-smart" value={ch.amount} onChange={(e) => { const n = [...charges]; n[i].amount = e.target.value; setCharges(n); }} />
+              </div>
+              <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, paddingBottom: 10 }}>
                 <input type="checkbox" checked={ch.gst_applicable} onChange={(e) => { const n = [...charges]; n[i].gst_applicable = e.target.checked; setCharges(n); }} /> GST
               </label>
-              <select className="form-control-smart" value={ch.gst_rate} onChange={(e) => { const n = [...charges]; n[i].gst_rate = e.target.value; setCharges(n); }}>
-                {gstOptions.map((g) => <option key={g} value={String(g)}>{g}%</option>)}
-              </select>
+              <div>
+                <label className="pos-field-label">GST %</label>
+                <select className="form-control-smart" value={ch.gst_rate} onChange={(e) => { const n = [...charges]; n[i].gst_rate = e.target.value; setCharges(n); }}>
+                  {gstOptions.map((g) => <option key={g} value={String(g)}>{g}%</option>)}
+                </select>
+              </div>
               <button type="button" className="btn-smart btn-outline-smart" onClick={() => setCharges(charges.filter((_, x) => x !== i))}>×</button>
             </div>
           ))}
@@ -365,11 +386,26 @@ export default function PurchaseOrderForm() {
           <div className="modal-content-smart" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontWeight: 800, marginBottom: 12 }}>Add supplier</h3>
             <form onSubmit={addSupplier}>
-              <input className="form-control-smart" style={{ marginBottom: 8 }} placeholder="Name *" value={newSup.name} onChange={(e) => setNewSup({ ...newSup, name: e.target.value })} />
-              <input className="form-control-smart" style={{ marginBottom: 8 }} placeholder="GSTIN" value={newSup.gstin} onChange={(e) => setNewSup({ ...newSup, gstin: e.target.value })} />
-              <input className="form-control-smart" style={{ marginBottom: 8 }} placeholder="Phone" value={newSup.phone} onChange={(e) => setNewSup({ ...newSup, phone: e.target.value })} />
-              <input className="form-control-smart" style={{ marginBottom: 8 }} placeholder="State" value={newSup.state} onChange={(e) => setNewSup({ ...newSup, state: e.target.value })} />
-              <input className="form-control-smart" style={{ marginBottom: 8 }} placeholder="Address" value={newSup.address} onChange={(e) => setNewSup({ ...newSup, address: e.target.value })} />
+              <div className="form-field">
+                <label className="form-field-label">Supplier name *</label>
+                <input className="form-control-smart" required value={newSup.name} onChange={(e) => setNewSup({ ...newSup, name: e.target.value })} />
+              </div>
+              <div className="form-field">
+                <label className="form-field-label">GSTIN</label>
+                <input className="form-control-smart" value={newSup.gstin} onChange={(e) => setNewSup({ ...newSup, gstin: e.target.value })} />
+              </div>
+              <div className="form-field">
+                <label className="form-field-label">Phone</label>
+                <input className="form-control-smart" value={newSup.phone} onChange={(e) => setNewSup({ ...newSup, phone: e.target.value })} />
+              </div>
+              <div className="form-field">
+                <label className="form-field-label">State</label>
+                <input className="form-control-smart" value={newSup.state} onChange={(e) => setNewSup({ ...newSup, state: e.target.value })} />
+              </div>
+              <div className="form-field">
+                <label className="form-field-label">Address</label>
+                <input className="form-control-smart" value={newSup.address} onChange={(e) => setNewSup({ ...newSup, address: e.target.value })} />
+              </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button type="button" className="btn-smart btn-outline-smart" onClick={() => setShowSupplier(false)}>Cancel</button>
                 <button type="submit" className="btn-smart btn-primary-smart" style={{ backgroundColor: '#059669' }}>Save supplier</button>

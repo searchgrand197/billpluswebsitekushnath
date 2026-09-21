@@ -210,7 +210,7 @@ def create_invoice_pdf(invoice):
         hsn = (getattr(product, 'hsn_code', None) or '—')
         batch_no = batch.batch_number if batch else '—'
         exp = batch.exp_date.strftime('%m/%y') if batch and getattr(batch, 'exp_date', None) else '—'
-        mrp = _rs(getattr(product, 'price', 0))
+        mrp = _rs(item.line_mrp())
         disc = _rs(item.disc_percent())
         rate = _rs(item.unit_price)
         gst = _rs(item.effective_gst_rate())

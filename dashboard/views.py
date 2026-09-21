@@ -38,15 +38,24 @@ razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 # Create your views here.
 
-class CategoryListView(generics.ListAPIView):
-    queryset = Category.objects.all()
+class CategoryListView(generics.ListCreateAPIView):
+    queryset = Category.objects.all().order_by('name')
     serializer_class = CategorySerializer
-    permission_classes = [AllowAny]
 
-class CategoryDetailView(generics.RetrieveAPIView):
+    def get_permissions(self):
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+
+class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
 class TagListView(generics.ListCreateAPIView):
     queryset = Tag.objects.all()
@@ -69,14 +78,34 @@ class BenefitDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
 
 class ProductListView(generics.ListCreateAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.all().select_related('category').prefetch_related('images', 'tags', 'benefits')
     serializer_class = ProductSerializer
-    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        search = self.request.query_params.get('search') or self.request.query_params.get('q')
+        category = self.request.query_params.get('category')
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search) | Q(description__icontains=search))
+        if category:
+            qs = qs.filter(category_id=category)
+        return qs.order_by('name')
+
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Product.objects.all()
+    queryset = Product.objects.all().select_related('category').prefetch_related('images', 'tags', 'benefits')
     serializer_class = ProductSerializer
-    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
 class ProductImageListView(generics.ListCreateAPIView):
     queryset = ProductImage.objects.all()
