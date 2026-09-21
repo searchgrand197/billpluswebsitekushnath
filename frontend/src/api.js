@@ -104,10 +104,12 @@ export const saveRecipe = (data) => api.post('recipes/', data);
 
 // Manufacturing API
 export const getManufacturingLogs = (params) => api.get('manufacturing/', { params });
+export const getNextBatchNumber = () => api.get('manufacturing/next-batch/');
 export const createManufacturingLog = (data) => api.post('manufacturing/', data);
 export const updateManufacturingLog = (id, data) => api.patch(`manufacturing/${id}/`, data);
 export const finalizeManufacturingLog = (id, data = {}) => api.post(`manufacturing/${id}/finalize/`, data);
 export const recordManufacturingOutput = (id, data) => api.post(`manufacturing/${id}/record_output/`, data);
+export const cancelManufacturingLog = (id, data) => api.post(`manufacturing/${id}/cancel/`, data);
 export const deleteManufacturingLog = (id) => api.delete(`manufacturing/${id}/`);
 
 // Stock Movements API

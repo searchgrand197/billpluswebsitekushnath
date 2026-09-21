@@ -462,6 +462,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(RecipeSerializer(recipe).data, status=status.HTTP_201_CREATED)
 
 
+_BATCH_NUM_RE = re.compile(r'^BATCH-(\d+)$', re.IGNORECASE)
+
+
+def generate_batch_number():
+    """Next manufacturing batch id: BATCH-0001, BATCH-0002, …"""
+    nums = []
+    for value in ManufacturingLog.objects.filter(batch_number__istartswith='BATCH-').values_list('batch_number', flat=True):
+        match = _BATCH_NUM_RE.match(str(value or '').strip())
+        if match:
+            nums.append(int(match.group(1)))
+    for value in ProductBatch.objects.filter(batch_number__istartswith='BATCH-').values_list('batch_number', flat=True):
+        match = _BATCH_NUM_RE.match(str(value or '').strip())
+        if match:
+            nums.append(int(match.group(1)))
+    next_n = (max(nums) + 1) if nums else 1
+    return f'BATCH-{next_n:04d}'
+
+
 class ManufacturingViewSet(viewsets.ModelViewSet):
     queryset = ManufacturingLog.objects.all().order_by('-created_at')
     serializer_class = ManufacturingLogSerializer
@@ -480,6 +498,10 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         return queryset.select_related('product', 'finished_batch')
 
+    @action(detail=False, methods=['get'], url_path='next-batch')
+    def next_batch(self, request):
+        return Response({'batch_number': generate_batch_number()})
+
     def _parse_payload(self, data):
         product_id = data.get('product')
         if not product_id:
@@ -487,7 +509,7 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
         prod_qty = Decimal(str(data.get('production_quantity', '1') or '1'))
         if prod_qty <= 0:
             return None, 'Production quantity must be greater than zero.'
-        batch_no = (data.get('batch_number') or '').strip() or f"BATCH-{int(datetime.now().timestamp())}"
+        batch_no = (data.get('batch_number') or '').strip() or generate_batch_number()
         return {
             'product': get_object_or_404(Product, id=product_id),
             'prod_qty': prod_qty,
@@ -891,6 +913,116 @@ class ManufacturingViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Only draft manufacturing batches can be deleted.'}, status=status.HTTP_400_BAD_REQUEST)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _revert_manufacturing_stock(self, mfg_log):
+        """Restore consumed raw materials and reverse remaining finished-goods stock."""
+        product = mfg_log.product
+        mfg_id = mfg_log.manufacturing_id
+
+        for item in mfg_log.consumed_items.select_related('raw_material').all():
+            rm = item.raw_material
+            if not rm:
+                continue
+            qty = Decimal(str(item.quantity_consumed or 0))
+            if qty <= 0:
+                continue
+            prev_stk = Decimal(str(rm.current_stock or 0))
+            new_stk = prev_stk + qty
+            rm.current_stock = new_stk
+            rm.save(update_fields=['current_stock'])
+            StockMovementLog.objects.create(
+                item_type='raw_material',
+                raw_material=rm,
+                product=product,
+                movement_type='return',
+                quantity=qty,
+                previous_balance=prev_stk,
+                new_balance=new_stk,
+                unit_cost=item.unit_cost or 0,
+                amount=item.total_cost or 0,
+                reference_id=mfg_id,
+                reason=f"Reverted consumption for cancelled batch {mfg_log.batch_number}",
+            )
+
+        batch = getattr(mfg_log, 'finished_batch', None)
+        if batch is None:
+            return
+
+        rem = Decimal(str(batch.remaining_quantity or 0))
+        if rem > 0:
+            stock, _ = Stock.objects.get_or_create(product=product)
+            prev_stk = Decimal(str(stock.quantity or 0))
+            if prev_stk < rem:
+                raise ValueError(
+                    f'Cannot revert finished stock: need {rem} units of {product.name} '
+                    f'but only {prev_stk} available. Cancel without reverting, or fix stock first.'
+                )
+            new_stk = prev_stk - rem
+            stock.quantity = new_stk
+            stock.save(update_fields=['quantity'])
+            StockMovementLog.objects.create(
+                item_type='finished_product',
+                product=product,
+                movement_type='adjustment',
+                quantity=-rem,
+                previous_balance=prev_stk,
+                new_balance=new_stk,
+                unit_cost=batch.unit_cost or 0,
+                reference_id=mfg_id,
+                reason=f"Reversed remaining stock for cancelled batch {mfg_log.batch_number}",
+            )
+
+        batch.delete()
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def cancel(self, request, pk=None):
+        """Cancel an in-progress or completed batch. Optionally revert RM + finished stock."""
+        instance = self.get_object()
+        if instance.status == 'cancelled':
+            return Response({'error': 'Batch is already cancelled.'}, status=status.HTTP_400_BAD_REQUEST)
+        if instance.status == 'draft':
+            return Response(
+                {'error': 'Delete draft batches instead of cancelling.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if instance.status not in ('in_progress', 'completed'):
+            return Response(
+                {'error': 'Only in-progress or completed batches can be cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if 'revert_stock' not in request.data and 'revert' not in request.data:
+            return Response(
+                {
+                    'error': (
+                        'Specify revert_stock: true to restore raw materials and product, '
+                        'or false to cancel without reverting.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        raw_revert = request.data.get('revert_stock', request.data.get('revert'))
+        revert = str(raw_revert).strip().lower() in ('1', 'true', 'yes', 'y')
+
+        if revert:
+            try:
+                self._revert_manufacturing_stock(instance)
+            except ValueError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        instance.status = 'cancelled'
+        note_line = (
+            'Cancelled — stock reverted (RM restored; remaining finished goods removed).'
+            if revert else
+            'Cancelled — stock not reverted.'
+        )
+        existing = (instance.notes or '').strip()
+        instance.notes = f'{existing}\n{note_line}'.strip() if existing else note_line
+        instance.save(update_fields=['status', 'notes', 'updated_at'])
+
+        return Response(ManufacturingLogSerializer(instance).data)
 
     @action(detail=True, methods=['post'])
     @transaction.atomic

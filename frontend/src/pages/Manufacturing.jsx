@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { getProducts, getRawMaterials, getRecipes, saveRecipe, getManufacturingLogs, createManufacturingLog, updateManufacturingLog, finalizeManufacturingLog, recordManufacturingOutput, deleteManufacturingLog, updateRawMaterial } from '../api';
-import { Factory, Plus, Search, AlertTriangle, CheckCircle2, FlaskConical, BookOpen, Layers, ArrowRight, Calculator, DollarSign, Eye, X, Trash2, Pencil, Save, Play, PackageCheck } from 'lucide-react';
+import { getProducts, getRawMaterials, getRecipes, saveRecipe, getManufacturingLogs, getNextBatchNumber, createManufacturingLog, updateManufacturingLog, finalizeManufacturingLog, recordManufacturingOutput, cancelManufacturingLog, deleteManufacturingLog, updateRawMaterial } from '../api';
+import { Factory, Plus, Search, AlertTriangle, CheckCircle2, FlaskConical, BookOpen, Layers, ArrowRight, Calculator, DollarSign, Eye, X, Trash2, Pencil, Save, Play, PackageCheck, Ban } from 'lucide-react';
 import { useToast } from '../components/ToastContext';
 import { getInputUnitOptions, convertQty, formatQty, formatQtyDisplay } from '../unitUtils';
 
@@ -37,7 +37,7 @@ export default function Manufacturing() {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productionQty, setProductionQty] = useState('10');
   const [actualQtyOptional, setActualQtyOptional] = useState('');
-  const [batchNumber, setBatchNumber] = useState(`BATCH-${Math.floor(1000 + Math.random() * 9000)}`);
+  const [batchNumber, setBatchNumber] = useState('BATCH-0001');
   const [mfgDate, setMfgDate] = useState(new Date().toISOString().split('T')[0]);
   const [expDate, setExpDate] = useState('');
   const [operator, setOperator] = useState('Production Manager');
@@ -66,6 +66,10 @@ export default function Manufacturing() {
   const [outputActual, setOutputActual] = useState('');
   const [savingOutput, setSavingOutput] = useState(false);
 
+  // Cancel batch modal
+  const [cancelModalLog, setCancelModalLog] = useState(null);
+  const [cancellingBatch, setCancellingBatch] = useState(false);
+
   // Recipe Builder Form State
   const [recipeProdId, setRecipeProdId] = useState('');
   const [yieldQty, setYieldQty] = useState('1');
@@ -78,21 +82,33 @@ export default function Manufacturing() {
   const toast = useToast();
 
   useEffect(() => {
-    fetchInitialData();
+    fetchInitialData({ refreshBatch: true });
   }, []);
 
-  const fetchInitialData = () => {
+  const assignNextBatchNumber = () => {
+    getNextBatchNumber()
+      .then((res) => setBatchNumber(res.data.batch_number || 'BATCH-0001'))
+      .catch(() => setBatchNumber('BATCH-0001'));
+  };
+
+  const fetchInitialData = ({ refreshBatch = false } = {}) => {
     Promise.all([
       getProducts(),
       getRawMaterials(),
       getRecipes(),
       getManufacturingLogs(),
+      ...(refreshBatch ? [getNextBatchNumber()] : []),
     ])
-      .then(([prodRes, rmRes, recRes, logRes]) => {
+      .then((results) => {
+        const [prodRes, rmRes, recRes, logRes] = results;
         setProducts(prodRes.data.results || prodRes.data);
         setRawMaterials(rmRes.data.results || rmRes.data);
         setRecipes(recRes.data.results || recRes.data);
         setLogs(logRes.data.results || logRes.data);
+        if (refreshBatch) {
+          const batchRes = results[4];
+          setBatchNumber(batchRes?.data?.batch_number || 'BATCH-0001');
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -146,6 +162,7 @@ export default function Manufacturing() {
     if (historyFilter === 'draft') return log.status === 'draft';
     if (historyFilter === 'in_progress') return log.status === 'in_progress';
     if (historyFilter === 'completed') return log.status === 'completed';
+    if (historyFilter === 'cancelled') return log.status === 'cancelled';
     return true;
   });
 
@@ -174,7 +191,7 @@ export default function Manufacturing() {
     setSelectedProductId('');
     setProductionQty('10');
     setActualQtyOptional('');
-    setBatchNumber(`BATCH-${Math.floor(1000 + Math.random() * 9000)}`);
+    assignNextBatchNumber();
     setMfgDate(new Date().toISOString().split('T')[0]);
     setExpDate('');
     setOperator('Production Manager');
@@ -243,6 +260,28 @@ export default function Manufacturing() {
         fetchInitialData();
       })
       .catch((err) => toast.showError(err.response?.data?.error || 'Failed to delete draft.'));
+  };
+
+  const openCancelModal = (log) => {
+    setSelectedLogDetails(null);
+    setCancelModalLog(log);
+  };
+
+  const handleCancelBatch = (revertStock) => {
+    if (!cancelModalLog) return;
+    setCancellingBatch(true);
+    cancelManufacturingLog(cancelModalLog.id, { revert_stock: revertStock })
+      .then(() => {
+        toast.showSuccess(
+          revertStock
+            ? `Batch ${cancelModalLog.batch_number} cancelled — stock reverted.`
+            : `Batch ${cancelModalLog.batch_number} cancelled — stock left as-is.`
+        );
+        setCancelModalLog(null);
+        fetchInitialData();
+      })
+      .catch((err) => toast.showError(err.response?.data?.error || 'Failed to cancel batch.'))
+      .finally(() => setCancellingBatch(false));
   };
 
   const openEditBatch = (log) => {
@@ -770,6 +809,7 @@ export default function Manufacturing() {
                 { key: 'draft', label: `Drafts (${draftCount})` },
                 { key: 'in_progress', label: `Awaiting (${inProgressCount})` },
                 { key: 'completed', label: 'Completed' },
+                { key: 'cancelled', label: 'Cancelled' },
               ].map((f) => (
                 <button
                   key={f.key}
@@ -880,13 +920,33 @@ export default function Manufacturing() {
                             >
                               <Eye size={14} /> View
                             </button>
-                            <button
-                              onClick={() => openEditBatch(log)}
-                              className="btn-smart btn-outline-smart"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#059669', borderColor: '#059669' }}
-                            >
-                              <Pencil size={14} /> Edit
-                            </button>
+                            {(isInProgress || isCompleted) && (
+                              <>
+                                <button
+                                  onClick={() => openEditBatch(log)}
+                                  className="btn-smart btn-outline-smart"
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#059669', borderColor: '#059669' }}
+                                >
+                                  <Pencil size={14} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => openCancelModal(log)}
+                                  className="btn-smart btn-outline-smart"
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#DC2626', borderColor: '#FCA5A5' }}
+                                >
+                                  <Ban size={14} /> Cancel
+                                </button>
+                              </>
+                            )}
+                            {log.status === 'cancelled' && (
+                              <button
+                                onClick={() => openEditBatch(log)}
+                                className="btn-smart btn-outline-smart"
+                                style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#059669', borderColor: '#059669' }}
+                              >
+                                <Pencil size={14} /> Edit
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -1516,16 +1576,26 @@ export default function Manufacturing() {
                 <X size={20} />
               </button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', gap: '8px', flexWrap: 'wrap' }}>
               {(selectedLogDetails.status === 'in_progress' || selectedLogDetails.status === 'completed') && (
-                <button
-                  type="button"
-                  onClick={() => openOutputModal(selectedLogDetails)}
-                  className="btn-smart btn-primary-smart"
-                  style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: selectedLogDetails.status === 'in_progress' ? '#D97706' : '#059669' }}
-                >
-                  <PackageCheck size={14} /> {selectedLogDetails.status === 'in_progress' ? 'Record actual' : 'Edit actual'}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openOutputModal(selectedLogDetails)}
+                    className="btn-smart btn-primary-smart"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: selectedLogDetails.status === 'in_progress' ? '#D97706' : '#059669' }}
+                  >
+                    <PackageCheck size={14} /> {selectedLogDetails.status === 'in_progress' ? 'Record actual' : 'Edit actual'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openCancelModal(selectedLogDetails)}
+                    className="btn-smart btn-outline-smart"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', color: '#DC2626', borderColor: '#FCA5A5' }}
+                  >
+                    <Ban size={14} /> Cancel batch
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -1766,6 +1836,79 @@ export default function Manufacturing() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {cancelModalLog && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200,
+          }}
+          onClick={() => !cancellingBatch && setCancelModalLog(null)}
+        >
+          <div
+            className="smart-card"
+            style={{ width: '92%', maxWidth: '460px', padding: '24px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                  Cancel batch {cancelModalLog.batch_number}?
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '4px 0 0' }}>
+                  {cancelModalLog.product_name} · {cancelModalLog.manufacturing_id}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={cancellingBatch}
+                onClick={() => setCancelModalLog(null)}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94A3B8' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', marginBottom: '16px', fontSize: '0.85rem', color: '#991B1B' }}>
+              Do you want to revert raw materials and finished product stock back?
+              <ul style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
+                <li><strong>Yes, revert</strong> — restore consumed RM; remove remaining finished stock from this batch.</li>
+                <li><strong>No, keep stock</strong> — mark cancelled only; inventory stays as it is.</li>
+              </ul>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn-smart btn-primary-smart"
+                disabled={cancellingBatch}
+                onClick={() => handleCancelBatch(true)}
+                style={{ backgroundColor: '#DC2626', borderColor: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <Ban size={14} /> {cancellingBatch ? 'Cancelling…' : 'Yes — cancel & revert stock'}
+              </button>
+              <button
+                type="button"
+                className="btn-smart btn-outline-smart"
+                disabled={cancellingBatch}
+                onClick={() => handleCancelBatch(false)}
+                style={{ color: '#B91C1C', borderColor: '#FCA5A5' }}
+              >
+                No — cancel without reverting
+              </button>
+              <button
+                type="button"
+                className="btn-smart btn-secondary-smart"
+                disabled={cancellingBatch}
+                onClick={() => setCancelModalLog(null)}
+              >
+                Keep batch active
+              </button>
+            </div>
           </div>
         </div>
       )}
